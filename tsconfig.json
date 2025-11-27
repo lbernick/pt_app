@@ -34,5 +34,6 @@
     ".expo",
     ".expo-shared",
     "coverage"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }
