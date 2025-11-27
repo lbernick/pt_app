@@ -1,64 +1,90 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
 import Message from '../components/Message';
 import ChatInput from '../components/ChatInput';
 import { Message as MessageType } from '../types/message';
+import { generateMockAIResponse, AI_RESPONSE_DELAY } from '../utils/mockAI';
 
 const COLORS = {
   background: '#f5f5f5',
 };
 
-// Placeholder messages for preview
-const PLACEHOLDER_MESSAGES: MessageType[] = [
+// Initial welcome message
+const INITIAL_MESSAGES: MessageType[] = [
   {
     id: '1',
     text: 'Hello! How can I help you today?',
     sender: 'ai',
-    timestamp: new Date(Date.now() - 10000),
-  },
-  {
-    id: '2',
-    text: 'I need help with my personal training routine.',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 8000),
-  },
-  {
-    id: '3',
-    text: 'I\'d be happy to help! What are your fitness goals? Are you looking to build muscle, lose weight, improve endurance, or something else?',
-    sender: 'ai',
-    timestamp: new Date(Date.now() - 5000),
-  },
-  {
-    id: '4',
-    text: 'I want to build muscle and get stronger.',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 3000),
-  },
-  {
-    id: '5',
-    text: 'Great! Building muscle requires a combination of resistance training, proper nutrition, and adequate rest. How many days per week can you commit to working out?',
-    sender: 'ai',
-    timestamp: new Date(Date.now() - 1000),
+    timestamp: new Date(),
   },
 ];
 
 export default function ChatScreen() {
+  const [messages, setMessages] = useState<MessageType[]>(INITIAL_MESSAGES);
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const handleSend = (text: string) => {
-    // Temporary handler - will be implemented in next steps
-    console.log('Message sent:', text);
+    // Create user message
+    const userMessage: MessageType = {
+      id: Date.now().toString(),
+      text,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+
+    // Add user message to state
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
+
+    // Scroll to bottom after user message
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    // Generate AI response after delay
+    setTimeout(() => {
+      const aiMessage: MessageType = {
+        id: (Date.now() + 1).toString(),
+        text: generateMockAIResponse(),
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+
+      setMessages((prevMessages) => [...prevMessages, aiMessage]);
+
+      // Scroll to bottom after AI message
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }, AI_RESPONSE_DELAY);
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {/* Messages container */}
-      <ScrollView style={styles.messagesContainer} contentContainerStyle={styles.messagesContent}>
-        {PLACEHOLDER_MESSAGES.map((message) => (
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.messagesContainer}
+        contentContainerStyle={styles.messagesContent}
+        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        keyboardShouldPersistTaps="handled"
+      >
+        {messages.map((message) => (
           <Message key={message.id} message={message} />
         ))}
       </ScrollView>
 
       {/* Input container */}
       <ChatInput onSend={handleSend} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
