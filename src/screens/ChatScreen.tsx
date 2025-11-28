@@ -5,10 +5,13 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import Message from '../components/Message';
 import ChatInput from '../components/ChatInput';
 import { Message as MessageType } from '../types/message';
-import { generateMockAIResponse, AI_RESPONSE_DELAY } from '../utils/mockAI';
+import { sendMessage } from '../services/chatApi';
+
+type ChatScreenRouteProp = RouteProp<{ Chat: { backendUrl: string } }, 'Chat'>;
 
 const COLORS = {
   background: '#f5f5f5',
@@ -25,10 +28,14 @@ const INITIAL_MESSAGES: MessageType[] = [
 ];
 
 export default function ChatScreen() {
+  const route = useRoute<ChatScreenRouteProp>();
+  const { backendUrl } = route.params;
+  const apiUrl = `${backendUrl}/api/v1/chat`;
+
   const [messages, setMessages] = useState<MessageType[]>(INITIAL_MESSAGES);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
     // Create user message
     const userMessage: MessageType = {
       id: Date.now().toString(),
@@ -45,11 +52,19 @@ export default function ChatScreen() {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
 
-    // Generate AI response after delay
-    setTimeout(() => {
+    try {
+      // Convert messages to API format
+      const apiMessages = [...messages, userMessage].map((msg) => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.text,
+      }));
+
+      // Get AI response from API
+      const response = await sendMessage(apiMessages, apiUrl);
+
       const aiMessage: MessageType = {
         id: (Date.now() + 1).toString(),
-        text: generateMockAIResponse(),
+        text: response.content,
         sender: 'ai',
         timestamp: new Date(),
       };
@@ -60,7 +75,22 @@ export default function ChatScreen() {
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
-    }, AI_RESPONSE_DELAY);
+    } catch (error) {
+      // Handle error by showing an error message
+      const errorMessage: MessageType = {
+        id: (Date.now() + 1).toString(),
+        text: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+
+      setMessages((prevMessages) => [...prevMessages, errorMessage]);
+
+      // Scroll to bottom after error message
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
   };
 
   return (
