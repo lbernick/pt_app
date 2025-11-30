@@ -14,6 +14,7 @@ export default function App() {
           name="Workout"
           component={WorkoutScreen}
           options={{ title: "Today's Workout" }}
+          initialParams={{ backendUrl: config.backendUrl }}
         />
         <Tab.Screen
           name="Chat"

@@ -5,8 +5,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
+import { useRoute, RouteProp } from "@react-navigation/native";
 import { WorkoutInstance } from "../types/workout";
+import {
+  generateWorkout,
+  convertWorkoutToInstance,
+} from "../services/workoutApi";
+
+type WorkoutScreenRouteProp = RouteProp<
+  { Workout: { backendUrl: string } },
+  "Workout"
+>;
 
 const COLORS = {
   background: "#f5f5f5",
@@ -19,42 +30,43 @@ const COLORS = {
   border: "#F0F0F0",
 };
 
-// Mock workout data
-const MOCK_WORKOUT: WorkoutInstance = {
-  exercises: [
-    {
-      exercise: { name: "Bench Press" },
-      sets: [
-        { reps: 10, weight: 135, rest_seconds: 90, completed: true },
-        { reps: 8, weight: 155, rest_seconds: 90, completed: true },
-        { reps: 6, weight: 175, rest_seconds: 90, completed: false },
-        { reps: 6, weight: 175, rest_seconds: 90, completed: false },
-      ],
-    },
-    {
-      exercise: { name: "Squats" },
-      sets: [
-        { reps: 12, weight: 185, rest_seconds: 120, completed: true },
-        { reps: 10, weight: 205, rest_seconds: 120, completed: false },
-        { reps: 8, weight: 225, rest_seconds: 120, completed: false },
-      ],
-    },
-    {
-      exercise: { name: "Pull-ups" },
-      sets: [
-        { reps: 10, rest_seconds: 60, completed: true },
-        { reps: 8, rest_seconds: 60, completed: false },
-        { reps: 6, rest_seconds: 60, completed: false },
-      ],
-    },
-  ],
-};
-
 export default function WorkoutScreen() {
-  const [workout, setWorkout] = useState<WorkoutInstance>(MOCK_WORKOUT);
+  const route = useRoute<WorkoutScreenRouteProp>();
+  const { backendUrl } = route.params;
+  const apiUrl = `${backendUrl}/api/v1/generate-workout`;
+
+  const [workout, setWorkout] = useState<WorkoutInstance | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGenerateWorkout = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Mock request data
+      const request = {
+        prompt: "Full body strength training",
+        difficulty: "intermediate",
+        duration_minutes: 45,
+      };
+
+      const generatedWorkout = await generateWorkout(request, apiUrl);
+      const workoutInstance = convertWorkoutToInstance(generatedWorkout);
+      setWorkout(workoutInstance);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to generate workout"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleSetCompletion = (exerciseIndex: number, setIndex: number) => {
     setWorkout((prevWorkout) => {
+      if (!prevWorkout) return prevWorkout;
+
       const newWorkout = { ...prevWorkout };
       newWorkout.exercises = [...prevWorkout.exercises];
       newWorkout.exercises[exerciseIndex] = {
@@ -109,15 +121,35 @@ export default function WorkoutScreen() {
   };
 
   // Check if there's a workout
-  const hasWorkout = workout?.exercises?.length > 0;
+  const hasWorkout = (workout?.exercises?.length ?? 0) > 0;
 
   if (!hasWorkout) {
     return (
       <View style={styles.blankStateContainer}>
-        <Text style={styles.blankStateTitle}>Rest Day</Text>
-        <Text style={styles.blankStateText}>
-          No workout scheduled for today. Take time to recover!
+        <Text style={styles.blankStateTitle}>
+          {loading ? "Generating..." : "Rest Day"}
         </Text>
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color={COLORS.exerciseTitle}
+            style={styles.loadingIndicator}
+          />
+        ) : (
+          <>
+            <Text style={styles.blankStateText}>
+              {error ||
+                "No workout scheduled for today. Generate a new workout to get started!"}
+            </Text>
+            <TouchableOpacity
+              style={styles.generateButton}
+              onPress={handleGenerateWorkout}
+              disabled={loading}
+            >
+              <Text style={styles.generateButtonText}>Generate Workout</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     );
   }
@@ -127,7 +159,7 @@ export default function WorkoutScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Today&apos;s Workout</Text>
       </View>
-      {workout.exercises.map((exerciseInstance, exerciseIndex) => (
+      {workout?.exercises.map((exerciseInstance, exerciseIndex) => (
         <View key={exerciseIndex} style={styles.exerciseCard}>
           <Text style={styles.exerciseName}>
             {exerciseInstance.exercise.name}
@@ -163,6 +195,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: COLORS.setIncomplete,
     textAlign: "center",
+    marginBottom: 24,
+  },
+  loadingIndicator: {
+    marginTop: 16,
+  },
+  generateButton: {
+    backgroundColor: COLORS.exerciseTitle,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  generateButtonText: {
+    color: COLORS.cardBackground,
+    fontSize: 18,
+    fontWeight: "600",
   },
   header: {
     padding: 16,
