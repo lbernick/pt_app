@@ -28,4 +28,6 @@ export interface Workout {
 
 export interface WorkoutInstance {
   exercises: WorkoutExerciseInstance[];
+  start_time?: Date;
+  end_time?: Date;
 }
