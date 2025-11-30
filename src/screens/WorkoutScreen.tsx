@@ -108,6 +108,20 @@ export default function WorkoutScreen() {
     );
   };
 
+  // Check if there's a workout
+  const hasWorkout = workout?.exercises?.length > 0;
+
+  if (!hasWorkout) {
+    return (
+      <View style={styles.blankStateContainer}>
+        <Text style={styles.blankStateTitle}>Rest Day</Text>
+        <Text style={styles.blankStateText}>
+          No workout scheduled for today. Take time to recover!
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -131,6 +145,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  blankStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    padding: 32,
+  },
+  blankStateTitle: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: COLORS.text,
+    marginBottom: 16,
+  },
+  blankStateText: {
+    fontSize: 18,
+    color: COLORS.setIncomplete,
+    textAlign: "center",
   },
   header: {
     padding: 16,

@@ -22,6 +22,12 @@ export interface WorkoutExerciseInstance {
   sets: SetInstance[];
 }
 
+export interface GenerateWorkoutRequest {
+  prompt: string;
+  difficulty: string;
+  duration_minutes?: number;
+}
+
 export interface Workout {
   exercises: WorkoutExercise[];
 }
