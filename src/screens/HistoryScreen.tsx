@@ -1,11 +1,23 @@
-import { View, Text, StyleSheet, FlatList } from "react-native";
+import { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { Calendar, DateData } from "react-native-calendars";
 import { WorkoutInstance } from "../types/workout";
+
+type ViewMode = "list" | "calendar";
 
 const COLORS = {
   background: "#f5f5f5",
   text: "#333",
   cardBackground: "#FFFFFF",
   pastWorkout: "#8E8E93",
+  skippedWorkout: "#FF3B30",
   upcomingWorkout: "#007AFF",
   completedGreen: "#34C759",
   shadow: "#000",
@@ -60,6 +72,19 @@ const MOCK_HISTORY: WorkoutInstance[] = [
       },
     ],
   },
+  {
+    date: "2025-11-24",
+    exercises: [
+      {
+        exercise: { name: "Leg Day" },
+        sets: [
+          { reps: 12, weight: 185, rest_seconds: 90, completed: false },
+          { reps: 10, weight: 205, rest_seconds: 90, completed: false },
+          { reps: 8, weight: 225, rest_seconds: 90, completed: false },
+        ],
+      },
+    ],
+  },
   // Upcoming workouts
   {
     date: "2025-12-01",
@@ -103,7 +128,13 @@ const MOCK_HISTORY: WorkoutInstance[] = [
 ];
 
 export default function HistoryScreen() {
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const today = new Date().toISOString().split("T")[0];
+
+  const toggleViewMode = () => {
+    setViewMode((prev) => (prev === "list" ? "calendar" : "list"));
+  };
 
   const isPastWorkout = (workout: WorkoutInstance): boolean => {
     return workout.date < today;
@@ -111,6 +142,15 @@ export default function HistoryScreen() {
 
   const isToday = (workout: WorkoutInstance): boolean => {
     return workout.date === today;
+  };
+
+  const isWorkoutCompleted = (workout: WorkoutInstance): boolean => {
+    // A workout is considered completed if it has start/end times
+    // or if any sets are marked as completed
+    if (workout.start_time && workout.end_time) return true;
+    return workout.exercises.some((exercise) =>
+      exercise.sets.some((set) => set.completed)
+    );
   };
 
   const formatDate = (dateString: string): string => {
@@ -126,7 +166,8 @@ export default function HistoryScreen() {
   const renderWorkoutCard = ({ item }: { item: WorkoutInstance }) => {
     const past = isPastWorkout(item);
     const todayWorkout = isToday(item);
-    const completed = item.start_time && item.end_time;
+    const completed = isWorkoutCompleted(item);
+    const skipped = past && !completed;
 
     return (
       <View
@@ -134,6 +175,7 @@ export default function HistoryScreen() {
           styles.workoutCard,
           past && styles.pastWorkoutCard,
           todayWorkout && styles.todayWorkoutCard,
+          skipped && styles.skippedWorkoutCard,
         ]}
       >
         <View style={styles.cardHeader}>
@@ -141,14 +183,15 @@ export default function HistoryScreen() {
             <Text
               style={[
                 styles.dateText,
-                past && styles.pastText,
+                past && !skipped && styles.pastText,
                 todayWorkout && styles.todayText,
+                skipped && styles.skippedText,
               ]}
             >
               {formatDate(item.date)}
               {todayWorkout && " (Today)"}
             </Text>
-            {completed && (
+            {completed && item.start_time && item.end_time && (
               <Text style={styles.timeText}>
                 {item.start_time} - {item.end_time}
               </Text>
@@ -157,6 +200,11 @@ export default function HistoryScreen() {
           {past && completed && (
             <View style={styles.completedBadge}>
               <Text style={styles.completedBadgeText}>✓ Completed</Text>
+            </View>
+          )}
+          {skipped && (
+            <View style={styles.skippedBadge}>
+              <Text style={styles.skippedBadgeText}>Skipped</Text>
             </View>
           )}
           {!past && !todayWorkout && (
@@ -177,17 +225,136 @@ export default function HistoryScreen() {
     );
   };
 
-  return (
-    <View style={styles.container}>
+  // Create marked dates for the calendar
+  const getMarkedDates = () => {
+    const marked: {
+      [key: string]: {
+        marked: boolean;
+        dotColor: string;
+        selected: boolean;
+        selectedColor: string;
+      };
+    } = {};
+
+    MOCK_HISTORY.forEach((workout) => {
+      const isPast = workout.date < today;
+      const isToday = workout.date === today;
+      const completed = isWorkoutCompleted(workout);
+
+      let color: string;
+      if (isToday) {
+        color = COLORS.completedGreen;
+      } else if (isPast) {
+        color = completed ? COLORS.pastWorkout : COLORS.skippedWorkout;
+      } else {
+        color = COLORS.upcomingWorkout;
+      }
+
+      marked[workout.date] = {
+        marked: true,
+        dotColor: color,
+        selected: selectedDate === workout.date,
+        selectedColor: color,
+      };
+    });
+
+    return marked;
+  };
+
+  const getSelectedDayWorkout = (): WorkoutInstance | null => {
+    if (!selectedDate) return null;
+    return MOCK_HISTORY.find((w) => w.date === selectedDate) || null;
+  };
+
+  const renderCalendarView = () => {
+    const selectedWorkout = getSelectedDayWorkout();
+
+    return (
+      <ScrollView style={styles.calendarScrollView}>
+        <Calendar
+          current={today}
+          markedDates={getMarkedDates()}
+          onDayPress={(day: DateData) => {
+            setSelectedDate(day.dateString);
+          }}
+          theme={{
+            backgroundColor: COLORS.background,
+            calendarBackground: COLORS.cardBackground,
+            textSectionTitleColor: COLORS.text,
+            selectedDayBackgroundColor: COLORS.upcomingWorkout,
+            selectedDayTextColor: COLORS.cardBackground,
+            todayTextColor: COLORS.completedGreen,
+            dayTextColor: COLORS.text,
+            textDisabledColor: COLORS.pastWorkout,
+            dotColor: COLORS.upcomingWorkout,
+            monthTextColor: COLORS.text,
+            textDayFontSize: 16,
+            textMonthFontSize: 18,
+            textDayHeaderFontSize: 14,
+          }}
+          style={styles.calendar}
+        />
+
+        {selectedWorkout && (
+          <View style={styles.selectedDayDetails}>
+            <Text style={styles.selectedDayTitle}>
+              {formatDate(selectedWorkout.date)}
+              {selectedWorkout.date === today && " (Today)"}
+            </Text>
+            {selectedWorkout.start_time && selectedWorkout.end_time && (
+              <Text style={styles.selectedDayTime}>
+                {selectedWorkout.start_time} - {selectedWorkout.end_time}
+              </Text>
+            )}
+            <View style={styles.selectedDayExercises}>
+              {selectedWorkout.exercises.map((exercise, index) => (
+                <View key={index} style={styles.selectedExerciseRow}>
+                  <Text style={styles.selectedExerciseName}>
+                    {exercise.exercise.name}
+                  </Text>
+                  <Text style={styles.selectedExerciseSets}>
+                    {exercise.sets.length} sets
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {selectedDate && !selectedWorkout && (
+          <View style={styles.selectedDayDetails}>
+            <Text style={styles.noWorkoutText}>No workout on this day</Text>
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  const renderListView = () => {
+    return (
       <FlatList
         data={MOCK_HISTORY}
         renderItem={renderWorkoutCard}
         keyExtractor={(item) => item.date}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <Text style={styles.headerTitle}>Workout History</Text>
-        }
       />
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Workout History</Text>
+        <TouchableOpacity
+          style={styles.toggleButton}
+          onPress={toggleViewMode}
+        >
+          <Text style={styles.toggleButtonText}>
+            {viewMode === "list" ? "📅" : "📋"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {viewMode === "list" ? renderListView() : renderCalendarView()}
     </View>
   );
 }
@@ -197,14 +364,99 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  listContent: {
-    padding: 16,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "bold",
     color: COLORS.text,
-    marginBottom: 16,
+  },
+  toggleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.cardBackground,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  toggleButtonText: {
+    fontSize: 24,
+  },
+  listContent: {
+    padding: 16,
+    paddingTop: 8,
+  },
+  calendarScrollView: {
+    flex: 1,
+  },
+  calendar: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  selectedDayDetails: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  selectedDayTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  selectedDayTime: {
+    fontSize: 14,
+    color: COLORS.pastWorkout,
+    marginBottom: 12,
+  },
+  selectedDayExercises: {
+    gap: 8,
+  },
+  selectedExerciseRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  selectedExerciseName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: COLORS.text,
+  },
+  selectedExerciseSets: {
+    fontSize: 14,
+    color: COLORS.pastWorkout,
+  },
+  noWorkoutText: {
+    fontSize: 16,
+    color: COLORS.pastWorkout,
+    textAlign: "center",
+    fontStyle: "italic",
   },
   workoutCard: {
     backgroundColor: COLORS.cardBackground,
@@ -221,6 +473,10 @@ const styles = StyleSheet.create({
   },
   pastWorkoutCard: {
     borderLeftColor: COLORS.pastWorkout,
+    opacity: 0.85,
+  },
+  skippedWorkoutCard: {
+    borderLeftColor: COLORS.skippedWorkout,
     opacity: 0.85,
   },
   todayWorkoutCard: {
@@ -240,6 +496,9 @@ const styles = StyleSheet.create({
   },
   pastText: {
     color: COLORS.pastWorkout,
+  },
+  skippedText: {
+    color: COLORS.skippedWorkout,
   },
   todayText: {
     color: COLORS.completedGreen,
@@ -266,6 +525,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   upcomingBadgeText: {
+    color: COLORS.cardBackground,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  skippedBadge: {
+    backgroundColor: COLORS.skippedWorkout,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  skippedBadgeText: {
     color: COLORS.cardBackground,
     fontSize: 12,
     fontWeight: "600",
