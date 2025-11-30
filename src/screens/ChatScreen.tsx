@@ -1,28 +1,28 @@
-import { useRef, useState } from 'react';
+import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-} from 'react-native';
-import { useRoute, RouteProp } from '@react-navigation/native';
-import Message from '../components/Message';
-import ChatInput from '../components/ChatInput';
-import { Message as MessageType } from '../types/message';
-import { sendMessage } from '../services/chatApi';
+} from "react-native";
+import { useRoute, RouteProp } from "@react-navigation/native";
+import Message from "../components/Message";
+import ChatInput from "../components/ChatInput";
+import { Message as MessageType } from "../types/message";
+import { sendMessage } from "../services/chatApi";
 
-type ChatScreenRouteProp = RouteProp<{ Chat: { backendUrl: string } }, 'Chat'>;
+type ChatScreenRouteProp = RouteProp<{ Chat: { backendUrl: string } }, "Chat">;
 
 const COLORS = {
-  background: '#f5f5f5',
+  background: "#f5f5f5",
 };
 
 // Initial welcome message
 const INITIAL_MESSAGES: MessageType[] = [
   {
-    id: '1',
-    text: 'Hello! How can I help you today?',
-    sender: 'ai',
+    id: "1",
+    text: "Hello! How can I help you today?",
+    sender: "ai",
     timestamp: new Date(),
   },
 ];
@@ -40,7 +40,7 @@ export default function ChatScreen() {
     const userMessage: MessageType = {
       id: Date.now().toString(),
       text,
-      sender: 'user',
+      sender: "user",
       timestamp: new Date(),
     };
 
@@ -55,7 +55,7 @@ export default function ChatScreen() {
     try {
       // Convert messages to API format
       const apiMessages = [...messages, userMessage].map((msg) => ({
-        role: msg.sender === 'user' ? 'user' : 'assistant',
+        role: msg.sender,
         content: msg.text,
       }));
 
@@ -65,7 +65,7 @@ export default function ChatScreen() {
       const aiMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         text: response.content,
-        sender: 'ai',
+        sender: "assistant",
         timestamp: new Date(),
       };
 
@@ -79,8 +79,8 @@ export default function ChatScreen() {
       // Handle error by showing an error message
       const errorMessage: MessageType = {
         id: (Date.now() + 1).toString(),
-        text: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
-        sender: 'ai',
+        text: `Error: ${error instanceof Error ? error.message : "Failed to get response"}`,
+        sender: "assistant",
         timestamp: new Date(),
       };
 
@@ -96,15 +96,17 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       {/* Messages container */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
-        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={() =>
+          scrollViewRef.current?.scrollToEnd({ animated: true })
+        }
         keyboardShouldPersistTaps="handled"
       >
         {messages.map((message) => (
