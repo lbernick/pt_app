@@ -28,6 +28,7 @@ export async function generateWorkout(
 
 export function convertWorkoutToInstance(workout: Workout): WorkoutInstance {
   return {
+    date: workout.date || new Date().toISOString().split("T")[0],
     exercises: workout.exercises.map((exercise) => ({
       exercise: exercise.exercise,
       sets: exercise.sets.map(

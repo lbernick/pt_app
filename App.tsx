@@ -2,6 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import ChatScreen from './src/screens/ChatScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
+import HistoryScreen from './src/screens/HistoryScreen';
 import { config } from './src/config/env';
 
 const Tab = createBottomTabNavigator();
@@ -15,6 +16,11 @@ export default function App() {
           component={WorkoutScreen}
           options={{ title: "Today's Workout" }}
           initialParams={{ backendUrl: config.backendUrl }}
+        />
+        <Tab.Screen
+          name="History"
+          component={HistoryScreen}
+          options={{ title: 'History' }}
         />
         <Tab.Screen
           name="Chat"

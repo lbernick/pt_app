@@ -30,10 +30,12 @@ export interface GenerateWorkoutRequest {
 
 export interface Workout {
   exercises: WorkoutExercise[];
+  date?: string; // ISO date string (YYYY-MM-DD)
 }
 
 export interface WorkoutInstance {
   exercises: WorkoutExerciseInstance[];
-  start_time?: Date;
-  end_time?: Date;
+  date: string; // ISO date string (YYYY-MM-DD)
+  start_time?: string; // Time string (HH:MM)
+  end_time?: string; // Time string (HH:MM)
 }
