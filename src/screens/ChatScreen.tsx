@@ -22,7 +22,7 @@ const INITIAL_MESSAGES: MessageType[] = [
   {
     id: "1",
     text: "Hello! How can I help you today?",
-    sender: "ai",
+    sender: "assistant",
     timestamp: new Date(),
   },
 ];
