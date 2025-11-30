@@ -1,10 +1,10 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import ChatScreen from './src/screens/ChatScreen';
-import WorkoutScreen from './src/screens/WorkoutScreen';
-import HistoryScreen from './src/screens/HistoryScreen';
-import { config } from './src/config/env';
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import ChatScreen from "./src/screens/ChatScreen";
+import WorkoutScreen from "./src/screens/WorkoutScreen";
+import HistoryScreen from "./src/screens/HistoryScreen";
+import { config } from "./src/config/env";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -16,7 +16,7 @@ function OnboardingApp() {
         <Stack.Screen
           name="Chat"
           component={ChatScreen}
-          options={{ title: 'AI Chat' }}
+          options={{ title: "AI Chat" }}
           initialParams={{ backendUrl: config.backendUrl }}
         />
       </Stack.Navigator>
@@ -37,12 +37,12 @@ function RegularApp() {
         <Tab.Screen
           name="History"
           component={HistoryScreen}
-          options={{ title: 'History' }}
+          options={{ title: "History" }}
         />
         <Tab.Screen
           name="Chat"
           component={ChatScreen}
-          options={{ title: 'AI Chat' }}
+          options={{ title: "AI Chat" }}
           initialParams={{ backendUrl: config.backendUrl }}
         />
       </Tab.Navigator>
@@ -51,7 +51,8 @@ function RegularApp() {
 }
 
 export default function App() {
-  if (config.appMode === 'onboarding') {
+  console.log("Starting app with config:", config);
+  if (config.appMode === "onboarding") {
     return <OnboardingApp />;
   }
 

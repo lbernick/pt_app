@@ -87,6 +87,13 @@ EXPO_PUBLIC_APP_MODE=onboarding
 - No bottom navigation tabs
 - Ideal for new user onboarding flows
 - Single-screen focused experience
+- **Onboarding Flow**:
+  - Automatically initiates conversation on screen load
+  - Calls `POST /api/v1/onboarding/message` with conversation history
+  - Displays assistant messages and collects user responses
+  - Continues conversation until `is_complete: true` is received
+  - Logs completion and onboarding state to console
+  - Note: Mode switching to regular mode requires app restart with updated env variable
 
 #### Regular Mode (Default)
 ```bash
