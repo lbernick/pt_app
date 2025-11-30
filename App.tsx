@@ -1,13 +1,30 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ChatScreen from './src/screens/ChatScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import { config } from './src/config/env';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-export default function App() {
+function OnboardingApp() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="Chat"
+          component={ChatScreen}
+          options={{ title: 'AI Chat' }}
+          initialParams={{ backendUrl: config.backendUrl }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+function RegularApp() {
   return (
     <NavigationContainer>
       <Tab.Navigator>
@@ -31,4 +48,12 @@ export default function App() {
       </Tab.Navigator>
     </NavigationContainer>
   );
+}
+
+export default function App() {
+  if (config.appMode === 'onboarding') {
+    return <OnboardingApp />;
+  }
+
+  return <RegularApp />;
 }

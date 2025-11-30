@@ -42,6 +42,63 @@ cd pt_app
 npm install
 ```
 
+## Configuration
+
+### Environment Variables
+
+Copy the example environment file and configure it:
+
+```bash
+cp .env.example .env
+```
+
+Available environment variables:
+
+- **`EXPO_PUBLIC_BACKEND_URL`** (optional)
+  - Backend API URL
+  - Default: `http://localhost:8000`
+  - Example: `http://192.168.1.100:8000`
+
+- **`EXPO_PUBLIC_APP_MODE`** (optional)
+  - App mode: `onboarding` or `regular`
+  - Default: `regular`
+  - **Onboarding mode**: Shows only the chat screen with no tabs - designed for initial user onboarding
+  - **Regular mode**: Shows full app with workout, history, and chat tabs
+
+Example `.env` file:
+
+```bash
+# Backend API URL
+EXPO_PUBLIC_BACKEND_URL=http://localhost:8000
+
+# App Mode
+EXPO_PUBLIC_APP_MODE=regular
+```
+
+### App Modes
+
+The app supports two modes that can be configured via the `EXPO_PUBLIC_APP_MODE` environment variable:
+
+#### Onboarding Mode
+```bash
+EXPO_PUBLIC_APP_MODE=onboarding
+```
+- Displays only the AI Chat screen
+- No bottom navigation tabs
+- Ideal for new user onboarding flows
+- Single-screen focused experience
+
+#### Regular Mode (Default)
+```bash
+EXPO_PUBLIC_APP_MODE=regular
+```
+- Full app experience with three tabs:
+  - **Workout**: Today's workout with exercise tracking
+  - **History**: Past and upcoming workouts (list and calendar views)
+  - **Chat**: AI-powered personal training assistant
+
+To switch modes, update the `.env` file and restart the development server.
+
 ## Running the App
 
 ### Start Development Server
