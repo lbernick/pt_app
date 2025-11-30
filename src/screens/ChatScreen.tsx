@@ -8,6 +8,7 @@ import {
 import { useRoute, RouteProp } from "@react-navigation/native";
 import Message from "../components/Message";
 import ChatInput from "../components/ChatInput";
+import LoadingIndicator from "../components/LoadingIndicator";
 import { Message as MessageType } from "../types/message";
 import { sendMessage } from "../services/chatApi";
 import { sendOnboardingMessage } from "../services/onboardingApi";
@@ -42,6 +43,7 @@ export default function ChatScreen() {
   const [onboardingHistory, setOnboardingHistory] = useState<
     OnboardingMessage[]
   >([]);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Initial onboarding message on mount
@@ -69,6 +71,14 @@ export default function ChatScreen() {
         }, 100);
       }
 
+      // Show loading indicator
+      setIsLoading(true);
+
+      // Scroll to show loading indicator
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
       // Call onboarding API
       const response = await sendOnboardingMessage(
         {
@@ -77,6 +87,9 @@ export default function ChatScreen() {
         },
         backendUrl
       );
+
+      // Hide loading indicator
+      setIsLoading(false);
 
       // Add assistant response to messages
       const aiMessage: MessageType = {
@@ -110,6 +123,9 @@ export default function ChatScreen() {
         // 3. Reloading the app or navigating to the regular app view
       }
     } catch (error) {
+      // Hide loading indicator on error
+      setIsLoading(false);
+
       const errorMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         text: `Error: ${error instanceof Error ? error.message : "Failed to get response"}`,
@@ -142,6 +158,14 @@ export default function ChatScreen() {
     }, 100);
 
     try {
+      // Show loading indicator
+      setIsLoading(true);
+
+      // Scroll to show loading indicator
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
       // Convert messages to API format
       const apiMessages = [...messages, userMessage].map((msg) => ({
         role: msg.sender,
@@ -150,6 +174,9 @@ export default function ChatScreen() {
 
       // Get AI response from API
       const response = await sendMessage(apiMessages, apiUrl);
+
+      // Hide loading indicator
+      setIsLoading(false);
 
       const aiMessage: MessageType = {
         id: (Date.now() + 1).toString(),
@@ -165,6 +192,9 @@ export default function ChatScreen() {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
+      // Hide loading indicator on error
+      setIsLoading(false);
+
       // Handle error by showing an error message
       const errorMessage: MessageType = {
         id: (Date.now() + 1).toString(),
@@ -209,6 +239,7 @@ export default function ChatScreen() {
         {messages.map((message) => (
           <Message key={message.id} message={message} />
         ))}
+        {isLoading && <LoadingIndicator />}
       </ScrollView>
 
       {/* Input container */}
