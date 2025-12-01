@@ -1,6 +1,98 @@
-import { generateWorkout } from '../workoutApi';
+import { getWorkouts, generateWorkout } from '../workoutApi';
 
 describe('workoutApi', () => {
+  describe('getWorkouts', () => {
+    const testBackendUrl = 'http://localhost:8000';
+
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('should fetch workouts from API', async () => {
+      const mockResponse = [
+        {
+          exercises: [
+            {
+              exercise: { name: 'Bench Press' },
+              sets: [
+                { reps: 10, weight: 135, rest_seconds: 90 },
+                { reps: 8, weight: 145, rest_seconds: 90 },
+              ],
+            },
+          ],
+          date: '2025-12-01',
+        },
+        {
+          exercises: [
+            {
+              exercise: { name: 'Squats' },
+              sets: [
+                { reps: 12, weight: 185, rest_seconds: 120 },
+              ],
+            },
+          ],
+          date: '2025-12-02',
+        },
+      ];
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getWorkouts(testBackendUrl);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/v1/workouts',
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should return empty array when no workouts exist', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      });
+
+      const result = await getWorkouts(testBackendUrl);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should throw an error when the server returns an error response', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      await expect(getWorkouts(testBackendUrl)).rejects.toThrow(
+        'Failed to fetch workouts: 500 Internal Server Error'
+      );
+    });
+
+    it('should throw an error when network request fails', async () => {
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error('Network error')
+      );
+
+      await expect(getWorkouts(testBackendUrl)).rejects.toThrow(
+        'Network error'
+      );
+    });
+  });
+
   describe('generateWorkout', () => {
     const testApiUrl = 'http://localhost:8000/api/v1/generate-workout';
 

@@ -2,6 +2,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ChatScreen from "./src/screens/ChatScreen";
+import OnboardingScreen from "./src/screens/OnboardingScreen";
 import WorkoutScreen from "./src/screens/WorkoutScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import { config } from "./src/config/env";
@@ -14,9 +15,9 @@ function OnboardingApp() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen
-          name="Chat"
-          component={ChatScreen}
-          options={{ title: "AI Chat" }}
+          name="Onboarding"
+          component={OnboardingScreen}
+          options={{ title: "Get Started" }}
           initialParams={{ backendUrl: config.backendUrl }}
         />
       </Stack.Navigator>

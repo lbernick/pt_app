@@ -83,15 +83,18 @@ The app supports two modes that can be configured via the `EXPO_PUBLIC_APP_MODE`
 ```bash
 EXPO_PUBLIC_APP_MODE=onboarding
 ```
-- Displays only the AI Chat screen
+- Displays dedicated **OnboardingScreen** with chat interface
 - No bottom navigation tabs
 - Ideal for new user onboarding flows
-- Single-screen focused experience
+- Single-screen focused experience with progress tracking
 - **Onboarding Flow**:
+  - Shows welcome header with "Welcome to PT App" title
+  - Displays progress percentage based on collected onboarding data
   - Automatically initiates conversation on screen load
   - Calls `POST /api/v1/onboarding/message` with conversation history
-  - Displays assistant messages and collects user responses
+  - Displays assistant messages and collects user responses via chat UI
   - Continues conversation until `is_complete: true` is received
+  - Shows "Onboarding Complete! ✓" message when finished
   - Logs completion and onboarding state to console
   - Note: Mode switching to regular mode requires app restart with updated env variable
 

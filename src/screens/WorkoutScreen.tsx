@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { WorkoutInstance } from "../types/workout";
 import {
+  getWorkouts,
   generateWorkout,
   convertWorkoutToInstance,
 } from "../services/workoutApi";
@@ -36,8 +37,39 @@ export default function WorkoutScreen() {
   const apiUrl = `${backendUrl}/api/v1/generate-workout`;
 
   const [workout, setWorkout] = useState<WorkoutInstance | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch today's workout on mount
+  useEffect(() => {
+    const fetchTodaysWorkout = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const workouts = await getWorkouts(backendUrl);
+        const today = new Date().toISOString().split("T")[0];
+
+        // Find today's workout
+        const todaysWorkout = workouts.find((w) => w.date === today);
+
+        if (todaysWorkout) {
+          const workoutInstance = convertWorkoutToInstance(todaysWorkout);
+          setWorkout(workoutInstance);
+        } else {
+          setWorkout(null);
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch workouts"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTodaysWorkout();
+  }, [backendUrl]);
 
   const handleGenerateWorkout = async () => {
     setLoading(true);

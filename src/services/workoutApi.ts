@@ -5,6 +5,25 @@ import {
   SetInstance,
 } from "../types/workout";
 
+export async function getWorkouts(backendUrl: string): Promise<Workout[]> {
+  const apiUrl = `${backendUrl}/api/v1/workouts`;
+
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch workouts: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
 export async function generateWorkout(
   request: GenerateWorkoutRequest,
   apiUrl: string
