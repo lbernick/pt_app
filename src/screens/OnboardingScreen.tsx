@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import ChatInterface from "../components/ChatInterface";
 import { Message as MessageType } from "../types/message";
 import { sendOnboardingMessage } from "../services/onboardingApi";
 import { OnboardingMessage, OnboardingState } from "../types/onboarding";
+import { generateTrainingPlan } from "../services/trainingPlanApi";
+import { TrainingPlan } from "../types/trainingplan";
 
 type OnboardingScreenRouteProp = RouteProp<
   { Onboarding: { backendUrl: string } },
@@ -19,6 +21,7 @@ const COLORS = {
   completeText: "#34C759",
   borderColor: "#e0e0e0",
   shadowColor: "#000",
+  errorText: "#FF3B30",
 };
 
 export default function OnboardingScreen() {
@@ -32,6 +35,9 @@ export default function OnboardingScreen() {
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const [trainingPlan, setTrainingPlan] = useState<TrainingPlan | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   // Initial onboarding message on mount
   useEffect(() => {
@@ -39,6 +45,26 @@ export default function OnboardingScreen() {
       handleOnboardingMessage("");
     }
   }, []);
+
+  const generatePlan = async (state: OnboardingState) => {
+    try {
+      setIsGeneratingPlan(true);
+      setPlanError(null);
+
+      console.log("Generating training plan...");
+      const plan = await generateTrainingPlan(state, backendUrl);
+
+      console.log("Training plan generated:", plan);
+      setTrainingPlan(plan);
+    } catch (error) {
+      console.error("Failed to generate training plan:", error);
+      setPlanError(
+        error instanceof Error ? error.message : "Failed to generate training plan"
+      );
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
 
   const handleOnboardingMessage = async (userText: string) => {
     try {
@@ -92,11 +118,9 @@ export default function OnboardingScreen() {
       if (response.is_complete) {
         setIsComplete(true);
         console.log("Onboarding complete! State:", response.state);
-        console.log("Switching to regular mode...");
-        // TODO: Implement mode switching - this would typically require:
-        // 1. Saving the onboarding state to persistent storage
-        // 2. Navigating to the main app
-        // 3. Or reloading with updated config
+
+        // Generate training plan
+        await generatePlan(response.state);
       }
     } catch (error) {
       // Hide loading indicator on error
@@ -128,6 +152,54 @@ export default function OnboardingScreen() {
     ).length;
     return Math.round((completedFields / fields.length) * 100);
   };
+
+  // Show training plan if generated
+  if (trainingPlan) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Your Training Plan</Text>
+          <Text style={styles.completeText}>Plan Generated! ✓</Text>
+        </View>
+        <ScrollView style={styles.planContainer}>
+          <Text style={styles.planJson}>
+            {JSON.stringify(trainingPlan, null, 2)}
+          </Text>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Show loading state while generating plan
+  if (isGeneratingPlan) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Welcome to PT App</Text>
+          <Text style={styles.completeText}>Onboarding Complete! ✓</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Generating your training plan...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show error if plan generation failed
+  if (planError) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Welcome to PT App</Text>
+          <Text style={styles.completeText}>Onboarding Complete! ✓</Text>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error: {planError}</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -190,5 +262,36 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.progressText,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.errorText,
+    textAlign: "center",
+  },
+  planContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  planJson: {
+    fontFamily: "Courier",
+    fontSize: 12,
+    color: COLORS.headerText,
   },
 });
