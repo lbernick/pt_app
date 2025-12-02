@@ -1,15 +1,25 @@
 import { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
-import { useRoute, RouteProp } from "@react-navigation/native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ChatInterface from "../components/ChatInterface";
 import { Message as MessageType } from "../types/message";
 import { sendOnboardingMessage } from "../services/onboardingApi";
 import { OnboardingMessage, OnboardingState } from "../types/onboarding";
 import { generateTrainingPlan } from "../services/trainingPlanApi";
-import { TrainingPlan } from "../types/trainingplan";
+
+type OnboardingStackParamList = {
+  Onboarding: { backendUrl: string };
+  TrainingPlan: { backendUrl: string };
+};
 
 type OnboardingScreenRouteProp = RouteProp<
-  { Onboarding: { backendUrl: string } },
+  OnboardingStackParamList,
+  "Onboarding"
+>;
+
+type OnboardingScreenNavigationProp = NativeStackNavigationProp<
+  OnboardingStackParamList,
   "Onboarding"
 >;
 
@@ -26,6 +36,7 @@ const COLORS = {
 
 export default function OnboardingScreen() {
   const route = useRoute<OnboardingScreenRouteProp>();
+  const navigation = useNavigation<OnboardingScreenNavigationProp>();
   const { backendUrl } = route.params;
 
   const [messages, setMessages] = useState<MessageType[]>([]);
@@ -36,7 +47,6 @@ export default function OnboardingScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
-  const [trainingPlan, setTrainingPlan] = useState<TrainingPlan | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
 
   // Initial onboarding message on mount
@@ -52,10 +62,12 @@ export default function OnboardingScreen() {
       setPlanError(null);
 
       console.log("Generating training plan...");
-      const plan = await generateTrainingPlan(state, backendUrl);
+      await generateTrainingPlan(state, backendUrl);
 
-      console.log("Training plan generated:", plan);
-      setTrainingPlan(plan);
+      console.log("Training plan generated successfully");
+
+      // Navigate to TrainingPlanScreen
+      navigation.navigate("TrainingPlan", { backendUrl });
     } catch (error) {
       console.error("Failed to generate training plan:", error);
       setPlanError(
@@ -152,23 +164,6 @@ export default function OnboardingScreen() {
     ).length;
     return Math.round((completedFields / fields.length) * 100);
   };
-
-  // Show training plan if generated
-  if (trainingPlan) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Your Training Plan</Text>
-          <Text style={styles.completeText}>Plan Generated! ✓</Text>
-        </View>
-        <ScrollView style={styles.planContainer}>
-          <Text style={styles.planJson}>
-            {JSON.stringify(trainingPlan, null, 2)}
-          </Text>
-        </ScrollView>
-      </View>
-    );
-  }
 
   // Show loading state while generating plan
   if (isGeneratingPlan) {
@@ -284,14 +279,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.errorText,
     textAlign: "center",
-  },
-  planContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  planJson: {
-    fontFamily: "Courier",
-    fontSize: 12,
-    color: COLORS.headerText,
   },
 });
