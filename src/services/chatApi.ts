@@ -1,3 +1,5 @@
+import { ApiClient } from "./apiClient";
+
 interface ChatMessage {
   role: string;
   content: string;
@@ -12,17 +14,8 @@ export async function sendMessage(
   messages: ChatMessage[],
   apiUrl: string
 ): Promise<ChatResponse> {
-  const response = await fetch(apiUrl, {
+  return ApiClient.fetchJson<ChatResponse>(apiUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ messages }),
+    body: { messages },
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get response: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
 }

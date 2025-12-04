@@ -46,7 +46,9 @@ npm install
 
 ### Environment Variables
 
-Copy the example environment file and configure it:
+The app automatically loads environment variables from a `.env` file in the project root.
+
+To get started, copy the example environment file and configure it:
 
 ```bash
 cp .env.example .env
@@ -65,6 +67,14 @@ Available environment variables:
   - **Onboarding mode**: Shows only the chat screen with no tabs - designed for initial user onboarding
   - **Regular mode**: Shows full app with workout, history, and chat tabs
 
+- **`EXPO_PUBLIC_AUTH_TOKEN`** (optional)
+  - Authentication token for API requests
+  - If provided, all API requests will include an `Authorization: Bearer <token>` header
+  - Default: none (no authentication)
+  - Example: `your-secret-token-here`
+
+This is temporary for local development; login support will be added with firebase auth.
+
 Example `.env` file:
 
 ```bash
@@ -73,6 +83,9 @@ EXPO_PUBLIC_BACKEND_URL=http://localhost:8000
 
 # App Mode
 EXPO_PUBLIC_APP_MODE=regular
+
+# Authentication Token (optional)
+EXPO_PUBLIC_AUTH_TOKEN=your-secret-token-here
 ```
 
 ### App Modes

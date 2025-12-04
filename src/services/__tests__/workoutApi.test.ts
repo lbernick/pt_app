@@ -78,7 +78,7 @@ describe('workoutApi', () => {
       });
 
       await expect(getWorkouts(testBackendUrl)).rejects.toThrow(
-        'Failed to fetch workouts: 500 Internal Server Error'
+        'API request failed: 500 Internal Server Error'
       );
     });
 
@@ -192,7 +192,7 @@ describe('workoutApi', () => {
       };
 
       await expect(generateWorkout(request, testApiUrl)).rejects.toThrow(
-        'Failed to generate workout: 500 Internal Server Error'
+        'API request failed: 500 Internal Server Error'
       );
     });
 
@@ -209,7 +209,7 @@ describe('workoutApi', () => {
       };
 
       await expect(generateWorkout(request, testApiUrl)).rejects.toThrow(
-        'Failed to generate workout: 400 Bad Request'
+        'API request failed: 400 Bad Request'
       );
     });
 

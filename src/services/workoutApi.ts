@@ -4,45 +4,21 @@ import {
   WorkoutInstance,
   SetInstance,
 } from "../types/workout";
+import { ApiClient } from "./apiClient";
 
 export async function getWorkouts(backendUrl: string): Promise<Workout[]> {
   const apiUrl = `${backendUrl}/api/v1/workouts`;
-
-  const response = await fetch(apiUrl, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch workouts: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.json();
+  return ApiClient.fetchJson<Workout[]>(apiUrl, { method: "GET" });
 }
 
 export async function generateWorkout(
   request: GenerateWorkoutRequest,
   apiUrl: string
 ): Promise<Workout> {
-  const response = await fetch(apiUrl, {
+  return ApiClient.fetchJson<Workout>(apiUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(request),
+    body: request,
   });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to generate workout: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.json();
 }
 
 export function convertWorkoutToInstance(workout: Workout): WorkoutInstance {

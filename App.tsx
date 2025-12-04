@@ -6,7 +6,7 @@ import OnboardingScreen from "./src/screens/OnboardingScreen";
 import TrainingPlanScreen from "./src/screens/TrainingPlanScreen";
 import WorkoutScreen from "./src/screens/WorkoutScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
-import { config } from "./src/config/env";
+import { config, safeConfig } from "./src/config/env";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -64,7 +64,7 @@ function RegularApp() {
 }
 
 export default function App() {
-  console.log("Starting app with config:", config);
+  console.log("Starting app with config:", safeConfig);
   if (config.appMode === "onboarding") {
     return <OnboardingApp />;
   }

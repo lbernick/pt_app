@@ -1,25 +1,12 @@
 import { TrainingPlan } from "../types/trainingplan";
 import { OnboardingState } from "../types/onboarding";
+import { ApiClient } from "./apiClient";
 
 export async function getTrainingPlan(
   backendUrl: string
 ): Promise<TrainingPlan> {
   const apiUrl = `${backendUrl}/api/v1/training-plan`;
-
-  const response = await fetch(apiUrl, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch training plan: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.json();
+  return ApiClient.fetchJson<TrainingPlan>(apiUrl, { method: "GET" });
 }
 
 export async function generateTrainingPlan(
@@ -27,20 +14,8 @@ export async function generateTrainingPlan(
   backendUrl: string
 ): Promise<TrainingPlan> {
   const apiUrl = `${backendUrl}/api/v1/generate-training-plan`;
-
-  const response = await fetch(apiUrl, {
+  return ApiClient.fetchJson<TrainingPlan>(apiUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(onboardingState),
+    body: onboardingState,
   });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to generate training plan: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.json();
 }

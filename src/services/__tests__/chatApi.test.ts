@@ -83,7 +83,7 @@ describe('chatApi', () => {
       ];
 
       await expect(sendMessage(messages, testApiUrl)).rejects.toThrow(
-        'Failed to get response: 500 Internal Server Error'
+        'API request failed: 500 Internal Server Error'
       );
     });
 
@@ -99,7 +99,7 @@ describe('chatApi', () => {
       ];
 
       await expect(sendMessage(messages, testApiUrl)).rejects.toThrow(
-        'Failed to get response: 400 Bad Request'
+        'API request failed: 400 Bad Request'
       );
     });
 
