@@ -1,18 +1,10 @@
-import { ApiClient } from '../apiClient';
-import { config } from '../../config/env';
-
-jest.mock('../../config/env', () => ({
-  config: {
-    authToken: undefined,
-  },
-}));
+import { ApiClient, UnauthorizedError } from '../apiClient';
 
 describe('ApiClient', () => {
   const testUrl = 'http://localhost:8000/api/v1/test';
 
   beforeEach(() => {
     global.fetch = jest.fn();
-    (config as { authToken?: string }).authToken = undefined;
   });
 
   afterEach(() => {
@@ -34,12 +26,11 @@ describe('ApiClient', () => {
       });
     });
 
-    it('should include Authorization header when authToken is set', async () => {
-      (config as { authToken?: string }).authToken = 'test-token-123';
+    it('should include Authorization header when token is provided', async () => {
       const mockResponse = new Response();
       (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
 
-      await ApiClient.fetch(testUrl);
+      await ApiClient.fetch(testUrl, { token: 'test-token-123' });
 
       expect(global.fetch).toHaveBeenCalledWith(testUrl, {
         method: 'GET',
@@ -50,7 +41,7 @@ describe('ApiClient', () => {
       });
     });
 
-    it('should not include Authorization header when authToken is undefined', async () => {
+    it('should not include Authorization header when token is undefined', async () => {
       const mockResponse = new Response();
       (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
 
@@ -64,8 +55,7 @@ describe('ApiClient', () => {
       });
     });
 
-    it('should make a POST request with body', async () => {
-      (config as { authToken?: string }).authToken = 'test-token-123';
+    it('should make a POST request with body and token', async () => {
       const mockResponse = new Response();
       (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
       const requestBody = { key: 'value' };
@@ -73,6 +63,7 @@ describe('ApiClient', () => {
       await ApiClient.fetch(testUrl, {
         method: 'POST',
         body: requestBody,
+        token: 'test-token-123',
       });
 
       expect(global.fetch).toHaveBeenCalledWith(testUrl, {
@@ -116,15 +107,14 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockData);
     });
 
-    it('should include Authorization header when authToken is set', async () => {
-      (config as { authToken?: string }).authToken = 'test-token-123';
+    it('should include Authorization header when token is provided', async () => {
       const mockData = { id: 1 };
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockData,
       });
 
-      await ApiClient.fetchJson(testUrl);
+      await ApiClient.fetchJson(testUrl, { token: 'test-token-123' });
 
       expect(global.fetch).toHaveBeenCalledWith(testUrl, {
         method: 'GET',
@@ -135,15 +125,16 @@ describe('ApiClient', () => {
       });
     });
 
-    it('should throw an error when response is not ok', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+    it('should throw UnauthorizedError for 401 responses', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
       });
 
+      await expect(ApiClient.fetchJson(testUrl)).rejects.toThrow(UnauthorizedError);
       await expect(ApiClient.fetchJson(testUrl)).rejects.toThrow(
-        'API request failed: 401 Unauthorized'
+        'Unauthorized: 401 Unauthorized'
       );
     });
 
@@ -172,7 +163,6 @@ describe('ApiClient', () => {
     });
 
     it('should handle POST requests with Authorization header', async () => {
-      (config as { authToken?: string }).authToken = 'secure-token';
       const mockData = { success: true };
       const requestBody = { data: 'test' };
 
@@ -184,6 +174,7 @@ describe('ApiClient', () => {
       const result = await ApiClient.fetchJson(testUrl, {
         method: 'POST',
         body: requestBody,
+        token: 'secure-token',
       });
 
       expect(global.fetch).toHaveBeenCalledWith(testUrl, {

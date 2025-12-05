@@ -4,9 +4,13 @@ import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ChatInterface from "../components/ChatInterface";
 import { Message as MessageType } from "../types/message";
-import { sendOnboardingMessage } from "../services/onboardingApi";
-import { OnboardingMessage, OnboardingState } from "../types/onboarding";
-import { generateTrainingPlan } from "../services/trainingPlanApi";
+import { useApiClient } from "../hooks/useApiClient";
+import {
+  OnboardingMessage,
+  OnboardingState,
+  OnboardingResponse,
+} from "../types/onboarding";
+import { TrainingPlan } from "../types/trainingplan";
 
 type OnboardingStackParamList = {
   Onboarding: { backendUrl: string; onPlanCreated?: () => void };
@@ -38,6 +42,7 @@ export default function OnboardingScreen() {
   const route = useRoute<OnboardingScreenRouteProp>();
   const navigation = useNavigation<OnboardingScreenNavigationProp>();
   const { backendUrl, onPlanCreated } = route.params;
+  const apiClient = useApiClient();
 
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [onboardingHistory, setOnboardingHistory] = useState<
@@ -62,7 +67,11 @@ export default function OnboardingScreen() {
       setPlanError(null);
 
       console.log("Generating training plan...");
-      await generateTrainingPlan(state, backendUrl);
+      const apiUrl = `${backendUrl}/api/v1/generate-training-plan`;
+      await apiClient.fetchJson<TrainingPlan>(apiUrl, {
+        method: "POST",
+        body: state,
+      });
 
       console.log("Training plan generated successfully");
 
@@ -76,7 +85,9 @@ export default function OnboardingScreen() {
     } catch (error) {
       console.error("Failed to generate training plan:", error);
       setPlanError(
-        error instanceof Error ? error.message : "Failed to generate training plan"
+        error instanceof Error
+          ? error.message
+          : "Failed to generate training plan",
       );
     } finally {
       setIsGeneratingPlan(false);
@@ -100,13 +111,14 @@ export default function OnboardingScreen() {
       setIsLoading(true);
 
       // Call onboarding API
-      const response = await sendOnboardingMessage(
-        {
+      const apiUrl = `${backendUrl}/api/v1/onboarding/message`;
+      const response = await apiClient.fetchJson<OnboardingResponse>(apiUrl, {
+        method: "POST",
+        body: {
           conversation_history: onboardingHistory,
           latest_message: userText,
         },
-        backendUrl
-      );
+      });
 
       // Hide loading indicator
       setIsLoading(false);
@@ -165,7 +177,7 @@ export default function OnboardingScreen() {
       "preferences",
     ];
     const completedFields = fields.filter(
-      (field) => onboardingState[field as keyof OnboardingState] !== undefined
+      (field) => onboardingState[field as keyof OnboardingState] !== undefined,
     ).length;
     return Math.round((completedFields / fields.length) * 100);
   };
@@ -180,7 +192,9 @@ export default function OnboardingScreen() {
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Generating your training plan...</Text>
+          <Text style={styles.loadingText}>
+            Generating your training plan...
+          </Text>
         </View>
       </View>
     );

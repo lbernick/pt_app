@@ -7,3 +7,6 @@ If you need to ignore a lint rule, give an explanation why it's necessary.
 
 # Dependencies
 - After changing dependencies, run `npx expo-doctor` and resolve any issues that arise if possible.
+
+# Code Style
+- DRY: If you find yourself repeating a block or line of code many times, consider creating a function or test fixture.

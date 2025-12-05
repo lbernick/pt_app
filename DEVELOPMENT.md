@@ -63,13 +63,26 @@ Available environment variables:
   
 To get your IP: `ipconfig getifaddr en0`
 
-- **`EXPO_PUBLIC_AUTH_TOKEN`** (optional)
-  - Authentication token for API requests
-  - If provided, all API requests will include an `Authorization: Bearer <token>` header
-  - Default: none (no authentication)
-  - Example: `your-secret-token-here`
+### Firebase Setup
 
-This is temporary for local development; login support will be added with firebase auth.
+This app uses Firebase for authentication. To set up Firebase:
+
+1. **Create a Firebase project** at [console.firebase.google.com](https://console.firebase.google.com)
+
+2. **Enable Email/Password authentication**:
+   - In the Firebase Console, go to Authentication > Sign-in method
+   - Enable Email/Password provider
+
+3. **Download configuration files**:
+   - **iOS**: Download `GoogleService-Info.plist` and place it in the `ios/` directory
+   - **Android**: Download `google-services.json` and place it in the `android/app/` directory
+
+4. **Configure native projects**:
+   ```bash
+   npx expo prebuild
+   ```
+   This generates the native iOS and Android projects with Firebase configuration.
+
 
 ### Dynamic Navigation
 

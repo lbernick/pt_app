@@ -9,6 +9,8 @@ import WorkoutScreen from "./src/screens/WorkoutScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import { config, safeConfig } from "./src/config/env";
 import { getTrainingPlan } from "./src/services/trainingPlanApi";
+import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
+import AuthNavigator from "./src/navigation/AuthNavigator";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -72,13 +74,28 @@ function RegularApp() {
   );
 }
 
-export default function App() {
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+  },
+});
+
+export function AppContent() {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [hasPlan, setHasPlan] = useState<boolean | null>(null);
 
   useEffect(() => {
-    checkForTrainingPlan();
-  }, []);
+    if (user) {
+      checkForTrainingPlan();
+    } else {
+      setHasPlan(false);
+      setIsLoading(false);
+    }
+  }, [user]);
 
   const checkForTrainingPlan = async () => {
     setIsLoading(true);
@@ -101,9 +118,17 @@ export default function App() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.loadingIndicator} testID="loading-indicator" />
+        <ActivityIndicator
+          size="large"
+          color={COLORS.loadingIndicator}
+          testID="loading-indicator"
+        />
       </View>
     );
+  }
+
+  if (!user) {
+    return <AuthNavigator />;
   }
 
   // Show onboarding if no plan exists
@@ -115,11 +140,59 @@ export default function App() {
   return <RegularApp />;
 }
 
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-  },
-});
+// function AppContent2() {
+//   const { user, loading } = useAuth();
+//   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<
+//     boolean | null
+//   >(null);
+//   const apiClient = useApiClient();
+
+//   useEffect(() => {
+//     if (user) {
+//       checkOnboardingStatus();
+//     } else {
+//       setHasCompletedOnboarding(null);
+//     }
+//   }, [user]);
+
+//   const checkOnboardingStatus = async () => {
+//     try {
+//       const status = await apiClient.fetchJson<OnboardingStatus>(
+//         `${config.backendUrl}/api/v1/user/onboarding-status`,
+//       );
+//       setHasCompletedOnboarding(status.completed);
+//     } catch (error) {
+//       console.error("Failed to check onboarding status:", error);
+//       setHasCompletedOnboarding(false);
+//     }
+//   };
+
+//   if (loading || (user && hasCompletedOnboarding === null)) {
+//     return <LoadingScreen />;
+//   }
+
+//   if (!user) {
+//     return <AuthNavigator />;
+//   }
+
+//   if (!hasCompletedOnboarding) {
+//     return <OnboardingNavigator />;
+//   }
+
+//   // Show onboarding if no plan exists
+//   if (hasPlan === false) {
+//     return <OnboardingApp onPlanCreated={() => setHasPlan(true)} />;
+//   }
+
+//   // Show regular app if plan exists
+//   return <RegularApp />;
+// }
+
+export default function App() {
+  console.log("Starting app with config:", safeConfig);
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}

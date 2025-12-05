@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { TrainingPlan } from "../types/trainingplan";
-import { getTrainingPlan } from "../services/trainingPlanApi";
+import { useApiClient } from "../hooks/useApiClient";
 
 type TrainingPlanScreenRouteProp = RouteProp<
   { TrainingPlan: { backendUrl: string } },
@@ -37,6 +37,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export default function TrainingPlanScreen() {
   const route = useRoute<TrainingPlanScreenRouteProp>();
   const { backendUrl } = route.params;
+  const apiClient = useApiClient();
 
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +48,8 @@ export default function TrainingPlanScreen() {
       try {
         setLoading(true);
         setError(null);
-        const fetchedPlan = await getTrainingPlan(backendUrl);
+        const apiUrl = `${backendUrl}/api/v1/training-plan`;
+        const fetchedPlan = await apiClient.fetchJson<TrainingPlan>(apiUrl, { method: "GET" });
         setPlan(fetchedPlan);
       } catch (err) {
         setError(
