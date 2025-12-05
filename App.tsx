@@ -140,54 +140,6 @@ export function AppContent() {
   return <RegularApp />;
 }
 
-// function AppContent2() {
-//   const { user, loading } = useAuth();
-//   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<
-//     boolean | null
-//   >(null);
-//   const apiClient = useApiClient();
-
-//   useEffect(() => {
-//     if (user) {
-//       checkOnboardingStatus();
-//     } else {
-//       setHasCompletedOnboarding(null);
-//     }
-//   }, [user]);
-
-//   const checkOnboardingStatus = async () => {
-//     try {
-//       const status = await apiClient.fetchJson<OnboardingStatus>(
-//         `${config.backendUrl}/api/v1/user/onboarding-status`,
-//       );
-//       setHasCompletedOnboarding(status.completed);
-//     } catch (error) {
-//       console.error("Failed to check onboarding status:", error);
-//       setHasCompletedOnboarding(false);
-//     }
-//   };
-
-//   if (loading || (user && hasCompletedOnboarding === null)) {
-//     return <LoadingScreen />;
-//   }
-
-//   if (!user) {
-//     return <AuthNavigator />;
-//   }
-
-//   if (!hasCompletedOnboarding) {
-//     return <OnboardingNavigator />;
-//   }
-
-//   // Show onboarding if no plan exists
-//   if (hasPlan === false) {
-//     return <OnboardingApp onPlanCreated={() => setHasPlan(true)} />;
-//   }
-
-//   // Show regular app if plan exists
-//   return <RegularApp />;
-// }
-
 export default function App() {
   console.log("Starting app with config:", safeConfig);
   return (

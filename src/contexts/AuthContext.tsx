@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { AuthContextType, AuthProviderProps } from '../types/auth';
+import { config } from '../config/env';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -9,6 +10,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Configure Firebase Auth Emulator if enabled
+    if (config.useFirebaseEmulator) {
+      console.log(`Using Firebase Auth Emulator at ${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`);
+      auth().useEmulator(`http://${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`);
+    }
+
     const unsubscribe = auth().onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);

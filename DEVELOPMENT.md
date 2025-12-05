@@ -65,7 +65,37 @@ To get your IP: `ipconfig getifaddr en0`
 
 ### Firebase Setup
 
-This app uses Firebase for authentication. To set up Firebase:
+This app uses Firebase for authentication. You have two options:
+
+#### Option 1: Use Firebase Emulator Suite (Recommended for Local Development)
+
+1. **Install Firebase CLI**:
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. **Initialize Firebase in your project**:
+   ```bash
+   firebase init emulators
+   ```
+   - Select "Authentication Emulator"
+   - Use default port 9099 for Auth emulator
+
+3. **Start the emulator**:
+   ```bash
+   firebase emulators:start
+   ```
+
+4. **Configure your app** to use the emulator by adding to your `.env` file:
+   ```bash
+   EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true
+   EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=localhost
+   EXPO_PUBLIC_FIREBASE_EMULATOR_PORT=9099
+   ```
+
+5. **Access the Emulator UI** at http://localhost:4000 to view users and manage auth state
+
+#### Option 2: Use Production Firebase
 
 1. **Create a Firebase project** at [console.firebase.google.com](https://console.firebase.google.com)
 
@@ -82,6 +112,11 @@ This app uses Firebase for authentication. To set up Firebase:
    npx expo prebuild
    ```
    This generates the native iOS and Android projects with Firebase configuration.
+
+5. **Ensure emulator is disabled** in your `.env`:
+   ```bash
+   # EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true  # Keep commented out
+   ```
 
 
 ### Dynamic Navigation
