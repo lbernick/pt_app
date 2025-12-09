@@ -1,8 +1,15 @@
+export interface TemplateExercise {
+  name: string;
+  sets: number;
+  rep_min: number;
+  rep_max: number;
+}
+
 export interface Template {
   id: string;
   name: string;
   description?: string;
-  exercises: string[];
+  exercises: TemplateExercise[];
 }
 
 export interface TrainingPlan {

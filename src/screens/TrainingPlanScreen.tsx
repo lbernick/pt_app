@@ -176,7 +176,7 @@ export default function TrainingPlanScreen() {
           <View style={styles.templateInfo}>
             <Text style={styles.templateName}>{template.name}</Text>
             <Text style={styles.templateExercises}>
-              {template.exercises.join(" • ")}
+              {template.exercises.map(ex => ex.name).join(" • ")}
             </Text>
             {template.description && (
               <Text style={styles.templateDescription}>{template.description}</Text>
