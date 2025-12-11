@@ -51,6 +51,7 @@ function RegularApp() {
           name="History"
           component={HistoryScreen}
           options={{ title: "History" }}
+          initialParams={{ backendUrl: config.backendUrl }}
         />
         <Tab.Screen
           name="Chat"

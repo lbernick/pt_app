@@ -1,4 +1,4 @@
-import { getWorkouts } from '../workoutApi';
+import { getWorkouts, getWorkoutById } from '../workoutApi';
 
 describe('workoutApi', () => {
   describe('getWorkouts', () => {
@@ -155,6 +155,80 @@ describe('workoutApi', () => {
       await expect(getWorkouts(testBackendUrl)).rejects.toThrow(
         'Network error'
       );
+    });
+  });
+
+  describe('getWorkoutById', () => {
+    const testBackendUrl = 'http://localhost:8000';
+    const testWorkoutId = '214b3e7e-d595-4e2e-bb9e-7485f0d726bf';
+
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('should fetch a single workout by ID', async () => {
+      const mockResponse = {
+        id: testWorkoutId,
+        template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+        date: '2026-03-02',
+        start_time: null,
+        end_time: null,
+        exercises: [
+          {
+            name: 'Overhead Press',
+            target_sets: 3,
+            target_rep_min: 8,
+            target_rep_max: 10,
+            sets: [
+              {
+                reps: 10,
+                weight: 95,
+                rest_seconds: 90,
+                completed: false,
+                notes: null,
+              },
+            ],
+            notes: null,
+          },
+        ],
+        created_at: '2025-12-11T00:49:18.299067',
+        updated_at: '2025-12-11T00:49:18.299077',
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getWorkoutById(testBackendUrl, testWorkoutId);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        `http://localhost:8000/api/v1/workouts/${testWorkoutId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should throw an error when workout not found', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      });
+
+      await expect(
+        getWorkoutById(testBackendUrl, 'invalid-id')
+      ).rejects.toThrow('API request failed: 404 Not Found');
     });
   });
 });

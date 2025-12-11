@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,19 @@ import {
   FlatList,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
+import { useRoute, RouteProp } from "@react-navigation/native";
 import { Calendar, DateData } from "react-native-calendars";
 import { WorkoutApi } from "../types/workout";
+import { getWorkouts, getWorkoutById } from "../services/workoutApi";
 
 type ViewMode = "list" | "calendar";
+
+type HistoryScreenRouteProp = RouteProp<
+  { History: { backendUrl: string } },
+  "History"
+>;
 
 const COLORS = {
   background: "#f5f5f5",
@@ -24,178 +32,89 @@ const COLORS = {
   border: "#E5E5EA",
 };
 
-// Mock workout history data
-const MOCK_HISTORY: WorkoutApi[] = [
-  // Past workouts
-  {
-    id: "mock-1",
-    template_id: "template-1",
-    date: "2025-11-28",
-    start_time: "09:00",
-    end_time: "09:45",
-    exercises: [
-      {
-        name: "Bench Press",
-        target_sets: 3,
-        target_rep_min: 6,
-        target_rep_max: 10,
-        sets: [
-          { reps: 10, weight: 135, rest_seconds: 90, completed: true, notes: null },
-          { reps: 8, weight: 155, rest_seconds: 90, completed: true, notes: null },
-          { reps: 6, weight: 175, rest_seconds: 90, completed: true, notes: null },
-        ],
-        notes: null,
-      },
-      {
-        name: "Squats",
-        target_sets: 2,
-        target_rep_min: 10,
-        target_rep_max: 12,
-        sets: [
-          { reps: 12, weight: 185, rest_seconds: 120, completed: true, notes: null },
-          { reps: 10, weight: 205, rest_seconds: 120, completed: true, notes: null },
-        ],
-        notes: null,
-      },
-    ],
-    created_at: "2025-11-28T09:00:00",
-    updated_at: "2025-11-28T09:45:00",
-  },
-  {
-    id: "mock-2",
-    template_id: "template-2",
-    date: "2025-11-26",
-    start_time: "10:30",
-    end_time: "11:15",
-    exercises: [
-      {
-        name: "Deadlifts",
-        target_sets: 3,
-        target_rep_min: 5,
-        target_rep_max: 8,
-        sets: [
-          { reps: 8, weight: 225, rest_seconds: 120, completed: true, notes: null },
-          { reps: 6, weight: 245, rest_seconds: 120, completed: true, notes: null },
-          { reps: 5, weight: 265, rest_seconds: 120, completed: true, notes: null },
-        ],
-        notes: null,
-      },
-      {
-        name: "Pull-ups",
-        target_sets: 3,
-        target_rep_min: 6,
-        target_rep_max: 10,
-        sets: [
-          { reps: 10, rest_seconds: 60, completed: true, notes: null },
-          { reps: 8, rest_seconds: 60, completed: true, notes: null },
-          { reps: 6, rest_seconds: 60, completed: true, notes: null },
-        ],
-        notes: null,
-      },
-    ],
-    created_at: "2025-11-26T10:30:00",
-    updated_at: "2025-11-26T11:15:00",
-  },
-  {
-    id: "mock-3",
-    template_id: "template-3",
-    date: "2025-11-24",
-    start_time: null,
-    end_time: null,
-    exercises: [
-      {
-        name: "Leg Day",
-        target_sets: 3,
-        target_rep_min: 8,
-        target_rep_max: 12,
-        sets: [
-          { reps: 12, weight: 185, rest_seconds: 90, completed: false, notes: null },
-          { reps: 10, weight: 205, rest_seconds: 90, completed: false, notes: null },
-          { reps: 8, weight: 225, rest_seconds: 90, completed: false, notes: null },
-        ],
-        notes: null,
-      },
-    ],
-    created_at: "2025-11-24T00:00:00",
-    updated_at: "2025-11-24T00:00:00",
-  },
-  // Upcoming workouts
-  {
-    id: "mock-4",
-    template_id: "template-4",
-    date: "2025-12-01",
-    start_time: null,
-    end_time: null,
-    exercises: [
-      {
-        name: "Overhead Press",
-        target_sets: 3,
-        target_rep_min: 6,
-        target_rep_max: 10,
-        sets: [
-          { reps: 10, weight: 95, rest_seconds: 90, completed: false, notes: null },
-          { reps: 8, weight: 105, rest_seconds: 90, completed: false, notes: null },
-          { reps: 6, weight: 115, rest_seconds: 90, completed: false, notes: null },
-        ],
-        notes: null,
-      },
-      {
-        name: "Rows",
-        target_sets: 2,
-        target_rep_min: 10,
-        target_rep_max: 12,
-        sets: [
-          { reps: 12, weight: 135, rest_seconds: 90, completed: false, notes: null },
-          { reps: 10, weight: 145, rest_seconds: 90, completed: false, notes: null },
-        ],
-        notes: null,
-      },
-    ],
-    created_at: "2025-12-01T00:00:00",
-    updated_at: "2025-12-01T00:00:00",
-  },
-  {
-    id: "mock-5",
-    template_id: "template-5",
-    date: "2025-12-03",
-    start_time: null,
-    end_time: null,
-    exercises: [
-      {
-        name: "Lunges",
-        target_sets: 2,
-        target_rep_min: 12,
-        target_rep_max: 12,
-        sets: [
-          { reps: 12, weight: 95, rest_seconds: 60, completed: false, notes: null },
-          { reps: 12, weight: 95, rest_seconds: 60, completed: false, notes: null },
-        ],
-        notes: null,
-      },
-      {
-        name: "Leg Press",
-        target_sets: 2,
-        target_rep_min: 12,
-        target_rep_max: 15,
-        sets: [
-          { reps: 15, weight: 225, rest_seconds: 90, completed: false, notes: null },
-          { reps: 12, weight: 245, rest_seconds: 90, completed: false, notes: null },
-        ],
-        notes: null,
-      },
-    ],
-    created_at: "2025-12-03T00:00:00",
-    updated_at: "2025-12-03T00:00:00",
-  },
-];
-
 export default function HistoryScreen() {
+  const route = useRoute<HistoryScreenRouteProp>();
+  const { backendUrl } = route.params;
+
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [workouts, setWorkouts] = useState<WorkoutApi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(
+    new Set(),
+  );
+  const [detailedWorkouts, setDetailedWorkouts] = useState<
+    Map<string, WorkoutApi>
+  >(new Map());
+  const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+
   const today = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    const fetchWorkouts = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const fetchedWorkouts = await getWorkouts(backendUrl);
+        setWorkouts(fetchedWorkouts);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch workouts",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkouts();
+  }, [backendUrl]);
 
   const toggleViewMode = () => {
     setViewMode((prev) => (prev === "list" ? "calendar" : "list"));
+  };
+
+  const toggleWorkoutExpansion = async (workoutId: string) => {
+    const isExpanded = expandedWorkouts.has(workoutId);
+
+    if (isExpanded) {
+      // Collapse: just remove from expanded set
+      setExpandedWorkouts((prev) => {
+        const next = new Set(prev);
+        next.delete(workoutId);
+        return next;
+      });
+    } else {
+      // Expand: add to set and fetch details if not cached
+      setExpandedWorkouts((prev) => new Set(prev).add(workoutId));
+
+      if (!detailedWorkouts.has(workoutId)) {
+        // Fetch detailed workout data
+        setLoadingDetails((prev) => new Set(prev).add(workoutId));
+
+        try {
+          const detailedWorkout = await getWorkoutById(backendUrl, workoutId);
+          setDetailedWorkouts((prev) =>
+            new Map(prev).set(workoutId, detailedWorkout),
+          );
+        } catch (err) {
+          console.error("Failed to fetch workout details:", err);
+          // Remove from expanded on error
+          setExpandedWorkouts((prev) => {
+            const next = new Set(prev);
+            next.delete(workoutId);
+            return next;
+          });
+        } finally {
+          setLoadingDetails((prev) => {
+            const next = new Set(prev);
+            next.delete(workoutId);
+            return next;
+          });
+        }
+      }
+    }
   };
 
   const isPastWorkout = (workout: WorkoutApi): boolean => {
@@ -207,12 +126,7 @@ export default function HistoryScreen() {
   };
 
   const isWorkoutCompleted = (workout: WorkoutApi): boolean => {
-    // A workout is considered completed if it has start/end times
-    // or if any sets are marked as completed
-    if (workout.start_time && workout.end_time) return true;
-    return workout.exercises.some((exercise) =>
-      exercise.sets.some((set) => set.completed)
-    );
+    return workout.end_time !== null;
   };
 
   const formatDate = (dateString: string): string => {
@@ -230,9 +144,13 @@ export default function HistoryScreen() {
     const todayWorkout = isToday(item);
     const completed = isWorkoutCompleted(item);
     const skipped = past && !completed;
+    const isExpanded = expandedWorkouts.has(item.id);
+    const isLoadingDetails = loadingDetails.has(item.id);
+    const detailedWorkout = detailedWorkouts.get(item.id);
 
     return (
-      <View
+      <TouchableOpacity
+        onPress={() => toggleWorkoutExpansion(item.id)}
         style={[
           styles.workoutCard,
           past && styles.pastWorkoutCard,
@@ -241,7 +159,7 @@ export default function HistoryScreen() {
         ]}
       >
         <View style={styles.cardHeader}>
-          <View>
+          <View style={styles.cardHeaderInfo}>
             <Text
               style={[
                 styles.dateText,
@@ -253,7 +171,7 @@ export default function HistoryScreen() {
               {formatDate(item.date)}
               {todayWorkout && " (Today)"}
             </Text>
-            {completed && item.start_time && item.end_time && (
+            {item.start_time && item.end_time && (
               <Text style={styles.timeText}>
                 {item.start_time} - {item.end_time}
               </Text>
@@ -274,16 +192,50 @@ export default function HistoryScreen() {
               <Text style={styles.upcomingBadgeText}>Upcoming</Text>
             </View>
           )}
+          <Text style={styles.expandIcon}>{isExpanded ? "▼" : "▶"}</Text>
         </View>
 
-        <View style={styles.exercisesList}>
-          {item.exercises.map((exercise, index) => (
-            <Text key={index} style={styles.exerciseName}>
-              • {exercise.name} ({exercise.sets.length} sets)
-            </Text>
-          ))}
-        </View>
-      </View>
+        {isExpanded && (
+          <View style={styles.expandedContent}>
+            {isLoadingDetails ? (
+              <ActivityIndicator size="small" color={COLORS.upcomingWorkout} />
+            ) : detailedWorkout ? (
+              detailedWorkout.exercises.map((exercise, exerciseIndex) => (
+                <View key={exerciseIndex} style={styles.exerciseDetailCard}>
+                  <Text style={styles.exerciseDetailName}>{exercise.name}</Text>
+                  {!past && (
+                    <Text style={styles.targetReps}>
+                      Target: {exercise.target_rep_min}-
+                      {exercise.target_rep_max} reps × {exercise.target_sets}{" "}
+                      sets
+                    </Text>
+                  )}
+                  {exercise.notes && (
+                    <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
+                  )}
+                  {past &&
+                    exercise.sets.map((set, setIndex) => (
+                      <View key={setIndex} style={styles.setRow}>
+                        <Text style={styles.setNumber}>
+                          Set {setIndex + 1}:
+                        </Text>
+                        <Text style={styles.setDetails}>
+                          {set.reps || "-"} reps{" "}
+                          {set.weight ? `× ${set.weight} lbs` : "× Bodyweight"}
+                        </Text>
+                        {set.completed && (
+                          <Text style={styles.setCompleted}>✓</Text>
+                        )}
+                      </View>
+                    ))}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.errorText}>Failed to load details</Text>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -298,7 +250,7 @@ export default function HistoryScreen() {
       };
     } = {};
 
-    MOCK_HISTORY.forEach((workout) => {
+    workouts.forEach((workout) => {
       const isPast = workout.date < today;
       const isToday = workout.date === today;
       const completed = isWorkoutCompleted(workout);
@@ -325,7 +277,7 @@ export default function HistoryScreen() {
 
   const getSelectedDayWorkout = (): WorkoutApi | null => {
     if (!selectedDate) return null;
-    return MOCK_HISTORY.find((w) => w.date === selectedDate) || null;
+    return workouts.find((w) => w.date === selectedDate) || null;
   };
 
   const renderCalendarView = () => {
@@ -393,11 +345,28 @@ export default function HistoryScreen() {
   };
 
   const renderListView = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.upcomingWorkout} />
+          <Text style={styles.loadingText}>Loading workouts...</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      );
+    }
+
     return (
       <FlatList
-        data={MOCK_HISTORY}
+        data={workouts}
         renderItem={renderWorkoutCard}
-        keyExtractor={(item) => item.date}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
       />
     );
@@ -407,10 +376,7 @@ export default function HistoryScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Workout History</Text>
-        <TouchableOpacity
-          style={styles.toggleButton}
-          onPress={toggleViewMode}
-        >
+        <TouchableOpacity style={styles.toggleButton} onPress={toggleViewMode}>
           <Text style={styles.toggleButtonText}>
             {viewMode === "list" ? "📅" : "📋"}
           </Text>
@@ -550,6 +516,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 12,
   },
+  cardHeaderInfo: {
+    flex: 1,
+  },
   dateText: {
     fontSize: 18,
     fontWeight: "600",
@@ -602,12 +571,82 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  exercisesList: {
-    gap: 6,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
   },
-  exerciseName: {
-    fontSize: 15,
+  loadingText: {
+    fontSize: 16,
     color: COLORS.text,
-    lineHeight: 22,
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.skippedWorkout,
+    textAlign: "center",
+  },
+  expandIcon: {
+    fontSize: 16,
+    color: COLORS.text,
+    marginLeft: 8,
+  },
+  expandedContent: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  exerciseDetailCard: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  exerciseDetailName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  targetReps: {
+    fontSize: 14,
+    color: COLORS.pastWorkout,
+    fontStyle: "italic",
+    marginBottom: 8,
+  },
+  exerciseNotes: {
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 8,
+    fontStyle: "italic",
+  },
+  setRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingLeft: 12,
+  },
+  setNumber: {
+    fontSize: 14,
+    color: COLORS.pastWorkout,
+    width: 60,
+  },
+  setDetails: {
+    fontSize: 14,
+    color: COLORS.text,
+    flex: 1,
+  },
+  setCompleted: {
+    fontSize: 16,
+    color: COLORS.completedGreen,
+    fontWeight: "bold",
   },
 });

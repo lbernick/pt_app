@@ -9,3 +9,11 @@ export async function getWorkouts(
   const apiUrl = `${backendUrl}/api/v1/workouts${dateParam}`;
   return ApiClient.fetchJson<WorkoutApi[]>(apiUrl, { method: "GET" });
 }
+
+export async function getWorkoutById(
+  backendUrl: string,
+  workoutId: string
+): Promise<WorkoutApi> {
+  const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}`;
+  return ApiClient.fetchJson<WorkoutApi>(apiUrl, { method: "GET" });
+}
