@@ -1,4 +1,4 @@
-import { getWorkouts, generateWorkout } from '../workoutApi';
+import { getWorkouts } from '../workoutApi';
 
 describe('workoutApi', () => {
   describe('getWorkouts', () => {
@@ -15,27 +15,47 @@ describe('workoutApi', () => {
     it('should fetch workouts from API', async () => {
       const mockResponse = [
         {
+          id: '214b3e7e-d595-4e2e-bb9e-7485f0d726bf',
+          template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+          date: '2025-12-01',
+          start_time: null,
+          end_time: null,
           exercises: [
             {
-              exercise: { name: 'Bench Press' },
+              name: 'Bench Press',
+              target_sets: 3,
+              target_rep_min: 8,
+              target_rep_max: 10,
               sets: [
-                { reps: 10, weight: 135, rest_seconds: 90 },
-                { reps: 8, weight: 145, rest_seconds: 90 },
+                { reps: 10, weight: 135, rest_seconds: 90, completed: false, notes: null },
+                { reps: 8, weight: 145, rest_seconds: 90, completed: false, notes: null },
               ],
+              notes: null,
             },
           ],
-          date: '2025-12-01',
+          created_at: '2025-12-01T09:00:00',
+          updated_at: '2025-12-01T09:00:00',
         },
         {
+          id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          template_id: '5971e376-eb3b-5d45-cdbd-d8dbefe6421b',
+          date: '2025-12-02',
+          start_time: null,
+          end_time: null,
           exercises: [
             {
-              exercise: { name: 'Squats' },
+              name: 'Squats',
+              target_sets: 3,
+              target_rep_min: 10,
+              target_rep_max: 12,
               sets: [
-                { reps: 12, weight: 185, rest_seconds: 120 },
+                { reps: 12, weight: 185, rest_seconds: 120, completed: false, notes: null },
               ],
+              notes: null,
             },
           ],
-          date: '2025-12-02',
+          created_at: '2025-12-02T09:00:00',
+          updated_at: '2025-12-02T09:00:00',
         },
       ];
 
@@ -49,6 +69,51 @@ describe('workoutApi', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8000/api/v1/workouts',
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should fetch workouts with date filter', async () => {
+      const mockResponse = [
+        {
+          id: '214b3e7e-d595-4e2e-bb9e-7485f0d726bf',
+          template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+          date: '2026-03-02',
+          start_time: null,
+          end_time: null,
+          exercises: [
+            {
+              name: 'Overhead Press',
+              target_sets: 3,
+              target_rep_min: 8,
+              target_rep_max: 10,
+              sets: [
+                { reps: null, weight: null, rest_seconds: null, completed: false, notes: null },
+              ],
+              notes: null,
+            },
+          ],
+          created_at: '2025-12-11T00:49:18.299067',
+          updated_at: '2025-12-11T00:49:18.299077',
+        },
+      ];
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getWorkouts(testBackendUrl, '2026-03-02');
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/v1/workouts?date=2026-03-02',
         {
           method: 'GET',
           headers: {
@@ -88,142 +153,6 @@ describe('workoutApi', () => {
       );
 
       await expect(getWorkouts(testBackendUrl)).rejects.toThrow(
-        'Network error'
-      );
-    });
-  });
-
-  describe('generateWorkout', () => {
-    const testApiUrl = 'http://localhost:8000/api/v1/generate-workout';
-
-    beforeEach(() => {
-      global.fetch = jest.fn();
-    });
-
-    afterEach(() => {
-      jest.resetAllMocks();
-    });
-
-    it('should send workout request and return Workout', async () => {
-      const mockResponse = {
-        exercises: [
-          {
-            exercise: { name: 'Push-ups' },
-            sets: [
-              { reps: 10, rest_seconds: 60 },
-              { reps: 10, rest_seconds: 60 },
-            ],
-          },
-          {
-            exercise: { name: 'Squats' },
-            sets: [
-              { reps: 15, weight: 135, rest_seconds: 90 },
-              { reps: 12, weight: 135, rest_seconds: 90 },
-            ],
-          },
-        ],
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const request = {
-        prompt: 'Upper body strength',
-        difficulty: 'intermediate',
-        duration_minutes: 30,
-      };
-
-      const result = await generateWorkout(request, testApiUrl);
-
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(global.fetch).toHaveBeenCalledWith(testApiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      });
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should handle request without duration_minutes', async () => {
-      const mockResponse = {
-        exercises: [
-          {
-            exercise: { name: 'Pull-ups' },
-            sets: [{ reps: 8, rest_seconds: 90 }],
-          },
-        ],
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const request = {
-        prompt: 'Back workout',
-        difficulty: 'advanced',
-      };
-
-      const result = await generateWorkout(request, testApiUrl);
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        testApiUrl,
-        expect.objectContaining({
-          body: JSON.stringify(request),
-        })
-      );
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('should throw an error when the server returns an error response', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      });
-
-      const request = {
-        prompt: 'Leg day',
-        difficulty: 'beginner',
-      };
-
-      await expect(generateWorkout(request, testApiUrl)).rejects.toThrow(
-        'API request failed: 500 Internal Server Error'
-      );
-    });
-
-    it('should throw an error when the server returns a 400 error', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-      });
-
-      const request = {
-        prompt: '',
-        difficulty: 'beginner',
-      };
-
-      await expect(generateWorkout(request, testApiUrl)).rejects.toThrow(
-        'API request failed: 400 Bad Request'
-      );
-    });
-
-    it('should throw an error when network request fails', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
-      );
-
-      const request = {
-        prompt: 'Full body',
-        difficulty: 'intermediate',
-      };
-
-      await expect(generateWorkout(request, testApiUrl)).rejects.toThrow(
         'Network error'
       );
     });

@@ -8,12 +8,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
-import { WorkoutInstance } from "../types/workout";
-import {
-  getWorkouts,
-  generateWorkout,
-  convertWorkoutToInstance,
-} from "../services/workoutApi";
+import { WorkoutApi } from "../types/workout";
+import { getWorkouts } from "../services/workoutApi";
 
 type WorkoutScreenRouteProp = RouteProp<
   { Workout: { backendUrl: string } },
@@ -34,9 +30,8 @@ const COLORS = {
 export default function WorkoutScreen() {
   const route = useRoute<WorkoutScreenRouteProp>();
   const { backendUrl } = route.params;
-  const apiUrl = `${backendUrl}/api/v1/generate-workout`;
 
-  const [workout, setWorkout] = useState<WorkoutInstance | null>(null);
+  const [workout, setWorkout] = useState<WorkoutApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,21 +42,17 @@ export default function WorkoutScreen() {
       setError(null);
 
       try {
-        const workouts = await getWorkouts(backendUrl);
         const today = new Date().toISOString().split("T")[0];
+        const workouts = await getWorkouts(backendUrl, today);
 
-        // Find today's workout
-        const todaysWorkout = workouts.find((w) => w.date === today);
-
-        if (todaysWorkout) {
-          const workoutInstance = convertWorkoutToInstance(todaysWorkout);
-          setWorkout(workoutInstance);
+        if (workouts.length > 0) {
+          setWorkout(workouts[0]);
         } else {
           setWorkout(null);
         }
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to fetch workouts"
+          err instanceof Error ? err.message : "Failed to fetch workout",
         );
       } finally {
         setLoading(false);
@@ -70,30 +61,6 @@ export default function WorkoutScreen() {
 
     fetchTodaysWorkout();
   }, [backendUrl]);
-
-  const handleGenerateWorkout = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Mock request data
-      const request = {
-        prompt: "Full body strength training",
-        difficulty: "intermediate",
-        duration_minutes: 45,
-      };
-
-      const generatedWorkout = await generateWorkout(request, apiUrl);
-      const workoutInstance = convertWorkoutToInstance(generatedWorkout);
-      setWorkout(workoutInstance);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to generate workout"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const toggleSetCompletion = (exerciseIndex: number, setIndex: number) => {
     setWorkout((prevWorkout) => {
@@ -117,7 +84,7 @@ export default function WorkoutScreen() {
   };
 
   const renderSet = (
-    set: WorkoutInstance["exercises"][0]["sets"][0],
+    set: WorkoutApi["exercises"][0]["sets"][0],
     exerciseIndex: number,
     setIndex: number,
   ) => {
@@ -125,29 +92,32 @@ export default function WorkoutScreen() {
     const setColor = set.completed ? COLORS.setCompleted : COLORS.setIncomplete;
 
     return (
-      <View key={setIndex} style={styles.setRow}>
-        <TouchableOpacity
-          onPress={() => toggleSetCompletion(exerciseIndex, setIndex)}
-          style={styles.checkbox}
-        >
-          <View
-            style={[
-              styles.checkboxInner,
-              set.completed && styles.checkboxChecked,
-            ]}
+      <View key={setIndex}>
+        <View style={styles.setRow}>
+          <TouchableOpacity
+            onPress={() => toggleSetCompletion(exerciseIndex, setIndex)}
+            style={styles.checkbox}
           >
-            {set.completed && <Text style={styles.checkmark}>✓</Text>}
-          </View>
-        </TouchableOpacity>
-        <Text style={[styles.setNumber, { color: setColor }]}>
-          {setIndex + 1}
-        </Text>
-        <Text style={styles.setDetails}>
-          {set.reps} reps × {weightText}
-        </Text>
-        {set.rest_seconds && (
-          <Text style={styles.restTime}>{set.rest_seconds}s rest</Text>
-        )}
+            <View
+              style={[
+                styles.checkboxInner,
+                set.completed && styles.checkboxChecked,
+              ]}
+            >
+              {set.completed && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+          </TouchableOpacity>
+          <Text style={[styles.setNumber, { color: setColor }]}>
+            {setIndex + 1}
+          </Text>
+          <Text style={styles.setDetails}>
+            {set.reps} reps × {weightText}
+          </Text>
+          {set.rest_seconds && (
+            <Text style={styles.restTime}>{set.rest_seconds}s rest</Text>
+          )}
+        </View>
+        {set.notes && <Text style={styles.setNotes}>{set.notes}</Text>}
       </View>
     );
   };
@@ -159,7 +129,7 @@ export default function WorkoutScreen() {
     return (
       <View style={styles.blankStateContainer}>
         <Text style={styles.blankStateTitle}>
-          {loading ? "Generating..." : "Rest Day"}
+          {loading ? "Loading..." : "Rest Day"}
         </Text>
         {loading ? (
           <ActivityIndicator
@@ -168,19 +138,9 @@ export default function WorkoutScreen() {
             style={styles.loadingIndicator}
           />
         ) : (
-          <>
-            <Text style={styles.blankStateText}>
-              {error ||
-                "No workout scheduled for today. Generate a new workout to get started!"}
-            </Text>
-            <TouchableOpacity
-              style={styles.generateButton}
-              onPress={handleGenerateWorkout}
-              disabled={loading}
-            >
-              <Text style={styles.generateButtonText}>Generate Workout</Text>
-            </TouchableOpacity>
-          </>
+          <Text style={styles.blankStateText}>
+            {error || "No workout scheduled for today. Enjoy your rest!"}
+          </Text>
         )}
       </View>
     );
@@ -193,9 +153,15 @@ export default function WorkoutScreen() {
       </View>
       {workout?.exercises.map((exerciseInstance, exerciseIndex) => (
         <View key={exerciseIndex} style={styles.exerciseCard}>
-          <Text style={styles.exerciseName}>
-            {exerciseInstance.exercise.name}
+          <Text style={styles.exerciseName}>{exerciseInstance.name}</Text>
+          <Text style={styles.targetReps}>
+            Target: {exerciseInstance.target_rep_min}-
+            {exerciseInstance.target_rep_max} reps ×{" "}
+            {exerciseInstance.target_sets} sets
           </Text>
+          {exerciseInstance.notes && (
+            <Text style={styles.exerciseNotes}>{exerciseInstance.notes}</Text>
+          )}
           {exerciseInstance.sets.map((set, setIndex) =>
             renderSet(set, exerciseIndex, setIndex),
           )}
@@ -232,18 +198,6 @@ const styles = StyleSheet.create({
   loadingIndicator: {
     marginTop: 16,
   },
-  generateButton: {
-    backgroundColor: COLORS.exerciseTitle,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  generateButtonText: {
-    color: COLORS.cardBackground,
-    fontSize: 18,
-    fontWeight: "600",
-  },
   header: {
     padding: 16,
     paddingTop: 8,
@@ -269,7 +223,20 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     color: COLORS.exerciseTitle,
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  targetReps: {
+    fontSize: 14,
+    color: COLORS.setIncomplete,
+    marginBottom: 8,
+    fontStyle: "italic",
+  },
+  exerciseNotes: {
+    fontSize: 14,
+    color: COLORS.text,
+    marginTop: 8,
+    marginBottom: 8,
+    fontStyle: "italic",
   },
   setRow: {
     flexDirection: "row",
@@ -314,5 +281,11 @@ const styles = StyleSheet.create({
   restTime: {
     fontSize: 14,
     color: COLORS.setIncomplete,
+  },
+  setNotes: {
+    fontSize: 12,
+    color: COLORS.setIncomplete,
+    marginTop: 4,
+    marginLeft: 36,
   },
 });
