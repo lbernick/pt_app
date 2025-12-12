@@ -1,4 +1,8 @@
-import { getWorkouts, getWorkoutById } from '../workoutApi';
+import {
+  getWorkouts,
+  getWorkoutById,
+  getWorkoutSuggestions,
+} from '../workoutApi';
 
 describe('workoutApi', () => {
   describe('getWorkouts', () => {
@@ -230,5 +234,100 @@ describe('workoutApi', () => {
         getWorkoutById(testBackendUrl, 'invalid-id')
       ).rejects.toThrow('API request failed: 404 Not Found');
     });
+  });
+
+  describe('getWorkoutSuggestions', () => {
+    const testBackendUrl = 'http://localhost:8000';
+    const testWorkoutId = '214b3e7e-d595-4e2e-bb9e-7485f0d726bf';
+
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('should fetch workout suggestions', async () => {
+      const mockResponse = {
+        exercises: [
+          {
+            name: 'Bench Press',
+            sets: [
+              {
+                reps: 10,
+                weight: 135,
+              },
+              {
+                reps: 8,
+                weight: 145,
+              },
+            ],
+          },
+        ],
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getWorkoutSuggestions(testBackendUrl, testWorkoutId);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        `http://localhost:8000/api/v1/workouts/${testWorkoutId}/suggest`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should throw an error when suggestions fetch fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      await expect(
+        getWorkoutSuggestions(testBackendUrl, testWorkoutId)
+      ).rejects.toThrow('API request failed: 500 Internal Server Error');
+    });
+
+    it(
+      'should handle timeout/slow response',
+      async () => {
+        const mockResponse = {
+          exercises: [],
+        };
+
+        (global.fetch as jest.Mock).mockImplementationOnce(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(
+                () =>
+                  resolve({
+                    ok: true,
+                    json: async () => mockResponse,
+                  }),
+                5000
+              )
+            )
+        );
+
+        // Should still resolve even if slow
+        const result = await getWorkoutSuggestions(
+          testBackendUrl,
+          testWorkoutId
+        );
+        expect(result.exercises).toEqual([]);
+      },
+      10000
+    ); // 10 second timeout to allow for 5 second delay
   });
 });

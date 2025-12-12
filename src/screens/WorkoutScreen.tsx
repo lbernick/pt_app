@@ -8,8 +8,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
-import { WorkoutApi } from "../types/workout";
-import { getWorkouts } from "../services/workoutApi";
+import { WorkoutApi, WorkoutSuggestionsResponse } from "../types/workout";
+import { getWorkouts, getWorkoutSuggestions } from "../services/workoutApi";
 
 type WorkoutScreenRouteProp = RouteProp<
   { Workout: { backendUrl: string } },
@@ -35,27 +35,61 @@ export default function WorkoutScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Suggestions state
+  const [suggestions, setSuggestions] =
+    useState<WorkoutSuggestionsResponse | null>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+
   // Fetch today's workout on mount
   useEffect(() => {
     const fetchTodaysWorkout = async () => {
       setLoading(true);
       setError(null);
+      setSuggestionsError(null);
 
       try {
-        const today = new Date().toISOString().split("T")[0];
-        const workouts = await getWorkouts(backendUrl, today);
+        const workouts = await getWorkouts(backendUrl, "2026-03-02");
 
         if (workouts.length > 0) {
-          setWorkout(workouts[0]);
+          const todaysWorkout = workouts[0];
+          setWorkout(todaysWorkout);
+
+          // Immediately set loading to false so workout displays
+          setLoading(false);
+
+          // Fetch suggestions in background (non-blocking)
+          fetchSuggestionsInBackground(todaysWorkout.id);
         } else {
           setWorkout(null);
+          setLoading(false);
         }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to fetch workout",
         );
-      } finally {
         setLoading(false);
+      }
+    };
+
+    const fetchSuggestionsInBackground = async (workoutId: string) => {
+      setSuggestionsLoading(true);
+      setSuggestionsError(null);
+
+      try {
+        const suggestionsData = await getWorkoutSuggestions(
+          backendUrl,
+          workoutId,
+        );
+        setSuggestions(suggestionsData);
+      } catch (err) {
+        console.error("Failed to fetch suggestions:", err);
+        setSuggestionsError(
+          err instanceof Error ? err.message : "Failed to fetch suggestions",
+        );
+        // Don't block the UI - user can still use workout with ranges
+      } finally {
+        setSuggestionsLoading(false);
       }
     };
 
@@ -83,13 +117,46 @@ export default function WorkoutScreen() {
     });
   };
 
+  const getSuggestedSet = (
+    exerciseName: string,
+    setIndex: number,
+  ): { reps: number; weight: number | null } | null => {
+    if (!suggestions) return null;
+
+    const exerciseSuggestion = suggestions.exercises.find(
+      (s) => s.name === exerciseName,
+    );
+
+    if (!exerciseSuggestion) return null;
+
+    const setSuggestion = exerciseSuggestion.sets[setIndex];
+
+    if (!setSuggestion) return null;
+
+    return {
+      reps: setSuggestion.reps,
+      weight: setSuggestion.weight,
+    };
+  };
+
   const renderSet = (
     set: WorkoutApi["exercises"][0]["sets"][0],
     exerciseIndex: number,
     setIndex: number,
+    exerciseName: string,
   ) => {
-    const weightText = set.weight ? `${set.weight} lbs` : "Bodyweight";
     const setColor = set.completed ? COLORS.setCompleted : COLORS.setIncomplete;
+
+    // Get suggestions for this specific set
+    const suggestedValues = getSuggestedSet(exerciseName, setIndex);
+
+    // Use suggested values if available, otherwise fall back to set data
+    const displayReps = suggestedValues?.reps ?? set.reps;
+    const displayWeight = suggestedValues?.weight ?? set.weight;
+    const weightText = displayWeight ? `${displayWeight} lbs` : "Bodyweight";
+
+    // Visual indicator if using suggestions
+    const usingSuggestions = suggestedValues !== null;
 
     return (
       <View key={setIndex}>
@@ -111,7 +178,10 @@ export default function WorkoutScreen() {
             {setIndex + 1}
           </Text>
           <Text style={styles.setDetails}>
-            {set.reps} reps × {weightText}
+            {displayReps} reps × {weightText}
+            {usingSuggestions && (
+              <Text style={styles.suggestedBadge}> ✨ Suggested</Text>
+            )}
           </Text>
           {set.rest_seconds && (
             <Text style={styles.restTime}>{set.rest_seconds}s rest</Text>
@@ -154,16 +224,39 @@ export default function WorkoutScreen() {
       {workout?.exercises.map((exerciseInstance, exerciseIndex) => (
         <View key={exerciseIndex} style={styles.exerciseCard}>
           <Text style={styles.exerciseName}>{exerciseInstance.name}</Text>
-          <Text style={styles.targetReps}>
-            Target: {exerciseInstance.target_rep_min}-
-            {exerciseInstance.target_rep_max} reps ×{" "}
-            {exerciseInstance.target_sets} sets
-          </Text>
+
+          {/* Show loading indicator while fetching suggestions */}
+          {suggestionsLoading && (
+            <View style={styles.suggestionsLoadingContainer}>
+              <ActivityIndicator size="small" color={COLORS.exerciseTitle} />
+              <Text style={styles.suggestionsLoadingText}>
+                Loading AI suggestions...
+              </Text>
+            </View>
+          )}
+
+          {/* Show target ranges if no suggestions yet */}
+          {!suggestions && !suggestionsLoading && (
+            <Text style={styles.targetReps}>
+              Target: {exerciseInstance.target_rep_min}-
+              {exerciseInstance.target_rep_max} reps ×{" "}
+              {exerciseInstance.target_sets} sets
+            </Text>
+          )}
+
+          {/* Show suggestions error (non-critical) */}
+          {suggestionsError && !suggestionsLoading && !suggestions && (
+            <Text style={styles.suggestionsErrorText}>
+              Could not load suggestions. Showing target ranges.
+            </Text>
+          )}
+
           {exerciseInstance.notes && (
             <Text style={styles.exerciseNotes}>{exerciseInstance.notes}</Text>
           )}
+
           {exerciseInstance.sets.map((set, setIndex) =>
-            renderSet(set, exerciseIndex, setIndex),
+            renderSet(set, exerciseIndex, setIndex, exerciseInstance.name),
           )}
         </View>
       ))}
@@ -287,5 +380,28 @@ const styles = StyleSheet.create({
     color: COLORS.setIncomplete,
     marginTop: 4,
     marginLeft: 36,
+  },
+  suggestionsLoadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  suggestionsLoadingText: {
+    fontSize: 14,
+    color: COLORS.exerciseTitle,
+    marginLeft: 8,
+    fontStyle: "italic",
+  },
+  suggestionsErrorText: {
+    fontSize: 13,
+    color: COLORS.setIncomplete,
+    marginBottom: 8,
+    fontStyle: "italic",
+  },
+  suggestedBadge: {
+    fontSize: 12,
+    color: COLORS.exerciseTitle,
+    fontWeight: "600",
   },
 });

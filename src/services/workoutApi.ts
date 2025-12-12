@@ -1,9 +1,9 @@
-import { WorkoutApi } from "../types/workout";
+import { WorkoutApi, WorkoutSuggestionsResponse } from "../types/workout";
 import { ApiClient } from "./apiClient";
 
 export async function getWorkouts(
   backendUrl: string,
-  date?: string
+  date?: string,
 ): Promise<WorkoutApi[]> {
   const dateParam = date ? `?date=${date}` : "";
   const apiUrl = `${backendUrl}/api/v1/workouts${dateParam}`;
@@ -12,8 +12,18 @@ export async function getWorkouts(
 
 export async function getWorkoutById(
   backendUrl: string,
-  workoutId: string
+  workoutId: string,
 ): Promise<WorkoutApi> {
   const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}`;
   return ApiClient.fetchJson<WorkoutApi>(apiUrl, { method: "GET" });
+}
+
+export async function getWorkoutSuggestions(
+  backendUrl: string,
+  workoutId: string,
+): Promise<WorkoutSuggestionsResponse> {
+  const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/suggest`;
+  return ApiClient.fetchJson<WorkoutSuggestionsResponse>(apiUrl, {
+    method: "POST",
+  });
 }

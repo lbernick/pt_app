@@ -65,3 +65,19 @@ export interface WorkoutApi {
   created_at: string;
   updated_at: string;
 }
+
+export interface SetSuggestion {
+  reps: number;
+  weight: number | null; // null for bodyweight
+}
+
+export interface ExerciseSuggestion {
+  name: string;
+  sets: SetSuggestion[];
+  notes?: string;
+}
+
+export interface WorkoutSuggestionsResponse {
+  exercises: ExerciseSuggestion[];
+  overall_notes?: string;
+}
