@@ -5,7 +5,9 @@ import {
   startWorkout,
   finishWorkout,
   cancelWorkout,
+  updateWorkoutExercises,
 } from '../workoutApi';
+import { WorkoutApi, WorkoutExerciseApi } from '../../types/workout';
 
 describe('workoutApi', () => {
   describe('getWorkouts', () => {
@@ -447,6 +449,158 @@ describe('workoutApi', () => {
         expect(result.start_time).toBeNull();
         expect(result.end_time).toBeNull();
         expect(result.exercises[0].sets[0].completed).toBe(false);
+      });
+    });
+
+    describe('updateWorkoutExercises', () => {
+      it('should update workout exercises with completed sets', async () => {
+        const exercisesPayload: WorkoutExerciseApi[] = [
+          {
+            name: 'Bench Press',
+            target_sets: 3,
+            target_rep_min: 8,
+            target_rep_max: 10,
+            sets: [
+              {
+                reps: 10,
+                weight: 135,
+                rest_seconds: 90,
+                completed: true,
+                notes: null,
+              },
+              {
+                reps: 8,
+                weight: 145,
+                rest_seconds: 90,
+                completed: false,
+                notes: null,
+              },
+            ],
+            notes: null,
+          },
+        ];
+
+        const mockResponse: WorkoutApi = {
+          id: testWorkoutId,
+          template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+          date: '2026-03-02',
+          start_time: '2026-03-02T14:30:00',
+          end_time: null,
+          exercises: exercisesPayload,
+          created_at: '2025-12-11T00:49:18.299067',
+          updated_at: '2026-03-02T14:35:00',
+        };
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        });
+
+        const result = await updateWorkoutExercises(
+          testBackendUrl,
+          testWorkoutId,
+          exercisesPayload
+        );
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(global.fetch).toHaveBeenCalledWith(
+          `http://localhost:8000/api/v1/workouts/${testWorkoutId}/exercises`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ exercises: exercisesPayload }),
+          }
+        );
+        expect(result).toEqual(mockResponse);
+        expect(result.exercises[0].sets[0].completed).toBe(true);
+      });
+
+      it('should update exercises with AI-suggested values', async () => {
+        const exercisesPayload: WorkoutExerciseApi[] = [
+          {
+            name: 'Squats',
+            target_sets: 3,
+            target_rep_min: 10,
+            target_rep_max: 12,
+            sets: [
+              {
+                reps: 12,
+                weight: 225,
+                rest_seconds: 120,
+                completed: true,
+                notes: null,
+              },
+            ],
+            notes: null,
+          },
+        ];
+
+        const mockResponse: WorkoutApi = {
+          id: testWorkoutId,
+          template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+          date: '2026-03-02',
+          start_time: '2026-03-02T14:30:00',
+          end_time: null,
+          exercises: exercisesPayload,
+          created_at: '2025-12-11T00:49:18.299067',
+          updated_at: '2026-03-02T14:36:00',
+        };
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        });
+
+        const result = await updateWorkoutExercises(
+          testBackendUrl,
+          testWorkoutId,
+          exercisesPayload
+        );
+
+        expect(result.exercises[0].sets[0].reps).toBe(12);
+        expect(result.exercises[0].sets[0].weight).toBe(225);
+      });
+
+      it('should throw an error when update fails', async () => {
+        const exercisesPayload: WorkoutExerciseApi[] = [];
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+        });
+
+        await expect(
+          updateWorkoutExercises(testBackendUrl, testWorkoutId, exercisesPayload)
+        ).rejects.toThrow('API request failed: 400 Bad Request');
+      });
+
+      it('should throw an error when workout not found', async () => {
+        const exercisesPayload: WorkoutExerciseApi[] = [];
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+        });
+
+        await expect(
+          updateWorkoutExercises(testBackendUrl, 'invalid-id', exercisesPayload)
+        ).rejects.toThrow('API request failed: 404 Not Found');
+      });
+
+      it('should handle network errors', async () => {
+        const exercisesPayload: WorkoutExerciseApi[] = [];
+
+        (global.fetch as jest.Mock).mockRejectedValueOnce(
+          new Error('Network error')
+        );
+
+        await expect(
+          updateWorkoutExercises(testBackendUrl, testWorkoutId, exercisesPayload)
+        ).rejects.toThrow('Network error');
       });
     });
   });

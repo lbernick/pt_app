@@ -15,6 +15,7 @@ import {
   startWorkout,
   finishWorkout,
   cancelWorkout,
+  updateWorkoutExercises,
 } from "../services/workoutApi";
 
 type WorkoutScreenRouteProp = RouteProp<
@@ -70,8 +71,10 @@ export default function WorkoutScreen() {
           // Immediately set loading to false so workout displays
           setLoading(false);
 
-          // Fetch suggestions in background (non-blocking)
-          fetchSuggestionsInBackground(todaysWorkout.id);
+          // Fetch suggestions in background (non-blocking) - only if not already finished
+          if (!todaysWorkout.end_time) {
+            fetchSuggestionsInBackground(todaysWorkout.id);
+          }
         } else {
           setWorkout(null);
           setLoading(false);
@@ -108,25 +111,79 @@ export default function WorkoutScreen() {
     fetchTodaysWorkout();
   }, [backendUrl]);
 
-  const toggleSetCompletion = (exerciseIndex: number, setIndex: number) => {
-    setWorkout((prevWorkout) => {
-      if (!prevWorkout) return prevWorkout;
+  const toggleSetCompletion = async (
+    exerciseIndex: number,
+    setIndex: number,
+  ) => {
+    // Early return: only allow toggling when workout is in progress
+    const status = getWorkoutStatus();
+    if (status !== "in_progress") {
+      return;
+    }
 
-      const newWorkout = { ...prevWorkout };
-      newWorkout.exercises = [...prevWorkout.exercises];
-      newWorkout.exercises[exerciseIndex] = {
-        ...prevWorkout.exercises[exerciseIndex],
-      };
-      newWorkout.exercises[exerciseIndex].sets = [
-        ...prevWorkout.exercises[exerciseIndex].sets,
-      ];
-      newWorkout.exercises[exerciseIndex].sets[setIndex] = {
-        ...prevWorkout.exercises[exerciseIndex].sets[setIndex],
-        completed:
-          !prevWorkout.exercises[exerciseIndex].sets[setIndex].completed,
-      };
-      return newWorkout;
-    });
+    if (!workout) return;
+
+    // Save the current state for rollback on error
+    const previousWorkout = workout;
+
+    // Determine if we're checking or unchecking
+    const currentSet = workout.exercises[exerciseIndex].sets[setIndex];
+    const isChecking = !currentSet.completed;
+
+    // Build the updated set
+    let updatedSet = { ...currentSet };
+
+    if (isChecking) {
+      // When checking: use AI suggestions if available
+      const exerciseName = workout.exercises[exerciseIndex].name;
+      const suggestedValues = getSuggestedSet(exerciseName, setIndex);
+
+      if (suggestedValues) {
+        updatedSet.reps = suggestedValues.reps;
+        updatedSet.weight =
+          suggestedValues.weight === null ? undefined : suggestedValues.weight;
+      }
+      // If no suggestions, keep current reps/weight values
+    }
+    // When unchecking: keep current reps/weight values (no change needed)
+
+    updatedSet.completed = !currentSet.completed;
+
+    // Optimistic update: clone workout structure immutably
+    const optimisticWorkout = { ...workout };
+    optimisticWorkout.exercises = [...workout.exercises];
+    optimisticWorkout.exercises[exerciseIndex] = {
+      ...workout.exercises[exerciseIndex],
+    };
+    optimisticWorkout.exercises[exerciseIndex].sets = [
+      ...workout.exercises[exerciseIndex].sets,
+    ];
+    optimisticWorkout.exercises[exerciseIndex].sets[setIndex] = updatedSet;
+
+    // Update UI immediately (optimistic)
+    setWorkout(optimisticWorkout);
+
+    // Clear any previous errors
+    setActionError(null);
+
+    try {
+      // Make API call with complete exercises array
+      const updatedWorkoutFromApi = await updateWorkoutExercises(
+        backendUrl,
+        workout.id,
+        optimisticWorkout.exercises,
+      );
+
+      // On success: replace with server response
+      setWorkout(updatedWorkoutFromApi);
+    } catch (err) {
+      console.error("Failed to update set completion:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to update set completion",
+      );
+      // Revert to previous state on error
+      setWorkout(previousWorkout);
+    }
   };
 
   const getWorkoutStatus = (): "not_started" | "in_progress" | "finished" => {
@@ -259,17 +316,23 @@ export default function WorkoutScreen() {
     // Visual indicator if using suggestions
     const usingSuggestions = suggestedValues !== null;
 
+    // Determine if checkbox should be disabled
+    const workoutStatus = getWorkoutStatus();
+    const isDisabled = workoutStatus !== "in_progress" || suggestionsLoading;
+
     return (
       <View key={setIndex}>
         <View style={styles.setRow}>
           <TouchableOpacity
             onPress={() => toggleSetCompletion(exerciseIndex, setIndex)}
             style={styles.checkbox}
+            disabled={isDisabled}
           >
             <View
               style={[
                 styles.checkboxInner,
                 set.completed && styles.checkboxChecked,
+                isDisabled && styles.checkboxDisabled,
               ]}
             >
               {set.completed && <Text style={styles.checkmark}>✓</Text>}
@@ -530,6 +593,10 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: COLORS.setCompleted,
     borderColor: COLORS.setCompleted,
+  },
+  checkboxDisabled: {
+    opacity: 0.4,
+    backgroundColor: COLORS.border,
   },
   checkmark: {
     color: COLORS.cardBackground,
