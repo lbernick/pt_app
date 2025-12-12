@@ -27,3 +27,27 @@ export async function getWorkoutSuggestions(
     method: "POST",
   });
 }
+
+export async function startWorkout(
+  backendUrl: string,
+  workoutId: string,
+): Promise<WorkoutApi> {
+  const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/start`;
+  return ApiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
+}
+
+export async function finishWorkout(
+  backendUrl: string,
+  workoutId: string,
+): Promise<WorkoutApi> {
+  const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/finish`;
+  return ApiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
+}
+
+export async function cancelWorkout(
+  backendUrl: string,
+  workoutId: string,
+): Promise<WorkoutApi> {
+  const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/cancel`;
+  return ApiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
+}

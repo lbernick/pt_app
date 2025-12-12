@@ -9,7 +9,13 @@ import {
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { WorkoutApi, WorkoutSuggestionsResponse } from "../types/workout";
-import { getWorkouts, getWorkoutSuggestions } from "../services/workoutApi";
+import {
+  getWorkouts,
+  getWorkoutSuggestions,
+  startWorkout,
+  finishWorkout,
+  cancelWorkout,
+} from "../services/workoutApi";
 
 type WorkoutScreenRouteProp = RouteProp<
   { Workout: { backendUrl: string } },
@@ -25,6 +31,8 @@ const COLORS = {
   cardBackground: "#FFFFFF",
   shadow: "#000",
   border: "#F0F0F0",
+  white: "#FFF",
+  destructive: "#FF3B30",
 };
 
 export default function WorkoutScreen() {
@@ -40,6 +48,10 @@ export default function WorkoutScreen() {
     useState<WorkoutSuggestionsResponse | null>(null);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+
+  // Workout action state
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Fetch today's workout on mount
   useEffect(() => {
@@ -117,6 +129,13 @@ export default function WorkoutScreen() {
     });
   };
 
+  const getWorkoutStatus = (): "not_started" | "in_progress" | "finished" => {
+    if (!workout) return "not_started";
+    if (workout.end_time) return "finished";
+    if (workout.start_time) return "in_progress";
+    return "not_started";
+  };
+
   const getSuggestedSet = (
     exerciseName: string,
     setIndex: number,
@@ -137,6 +156,88 @@ export default function WorkoutScreen() {
       reps: setSuggestion.reps,
       weight: setSuggestion.weight,
     };
+  };
+
+  const handleStartWorkout = async () => {
+    if (!workout) return;
+
+    setActionLoading(true);
+    setActionError(null);
+
+    // Optimistic update
+    const now = new Date().toISOString();
+    const optimisticWorkout = { ...workout, start_time: now };
+    setWorkout(optimisticWorkout);
+
+    try {
+      const updatedWorkout = await startWorkout(backendUrl, workout.id);
+      setWorkout(updatedWorkout);
+    } catch (err) {
+      console.error("Failed to start workout:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to start workout",
+      );
+      setWorkout(workout); // Revert on error
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleFinishWorkout = async () => {
+    if (!workout) return;
+
+    setActionLoading(true);
+    setActionError(null);
+
+    // Optimistic update
+    const now = new Date().toISOString();
+    const optimisticWorkout = { ...workout, end_time: now };
+    setWorkout(optimisticWorkout);
+
+    try {
+      const updatedWorkout = await finishWorkout(backendUrl, workout.id);
+      setWorkout(updatedWorkout);
+    } catch (err) {
+      console.error("Failed to finish workout:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to finish workout",
+      );
+      setWorkout(workout); // Revert on error
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelWorkout = async () => {
+    if (!workout) return;
+
+    setActionLoading(true);
+    setActionError(null);
+
+    // Optimistic update: clear times and reset completions
+    const optimisticWorkout: WorkoutApi = {
+      ...workout,
+      start_time: null,
+      end_time: null,
+      exercises: workout.exercises.map((ex) => ({
+        ...ex,
+        sets: ex.sets.map((set) => ({ ...set, completed: false })),
+      })),
+    };
+    setWorkout(optimisticWorkout);
+
+    try {
+      const updatedWorkout = await cancelWorkout(backendUrl, workout.id);
+      setWorkout(updatedWorkout);
+    } catch (err) {
+      console.error("Failed to cancel workout:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to cancel workout",
+      );
+      setWorkout(workout); // Revert on error
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const renderSet = (
@@ -220,6 +321,53 @@ export default function WorkoutScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Today&apos;s Workout</Text>
+
+        {/* Action button - upper right */}
+        <View style={styles.headerActions}>
+          {actionError && (
+            <Text style={styles.actionErrorText}>{actionError}</Text>
+          )}
+
+          {getWorkoutStatus() === "not_started" && (
+            <TouchableOpacity
+              onPress={handleStartWorkout}
+              disabled={actionLoading}
+              style={[
+                styles.startButton,
+                actionLoading && styles.buttonDisabled,
+              ]}
+            >
+              {actionLoading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Text style={styles.startButtonText}>Start</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {getWorkoutStatus() === "in_progress" && (
+            <TouchableOpacity
+              onPress={handleFinishWorkout}
+              disabled={actionLoading}
+              style={[
+                styles.finishButton,
+                actionLoading && styles.buttonDisabled,
+              ]}
+            >
+              {actionLoading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Text style={styles.finishButtonText}>Finish</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {getWorkoutStatus() === "finished" && (
+            <View style={styles.finishedBadge}>
+              <Text style={styles.finishedBadgeText}>✓ Completed</Text>
+            </View>
+          )}
+        </View>
       </View>
       {workout?.exercises.map((exerciseInstance, exerciseIndex) => (
         <View key={exerciseIndex} style={styles.exerciseCard}>
@@ -260,6 +408,30 @@ export default function WorkoutScreen() {
           )}
         </View>
       ))}
+
+      {/* Cancel button - bottom */}
+      {(getWorkoutStatus() === "in_progress" ||
+        getWorkoutStatus() === "finished") && (
+        <View style={styles.cancelContainer}>
+          <TouchableOpacity
+            onPress={handleCancelWorkout}
+            disabled={actionLoading}
+            style={[
+              styles.cancelButton,
+              actionLoading && styles.buttonDisabled,
+            ]}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color={COLORS.destructive} />
+            ) : (
+              <Text style={styles.cancelButtonText}>Cancel Workout</Text>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.cancelWarning}>
+            This will reset all progress
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -292,6 +464,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
     paddingTop: 8,
   },
@@ -403,5 +578,80 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.exerciseTitle,
     fontWeight: "600",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionErrorText: {
+    fontSize: 12,
+    color: COLORS.destructive,
+    marginRight: 8,
+  },
+  startButton: {
+    backgroundColor: COLORS.setCompleted,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  startButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  finishButton: {
+    backgroundColor: COLORS.exerciseTitle,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  finishButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  finishedBadge: {
+    backgroundColor: COLORS.setCompleted,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  finishedBadgeText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  cancelContainer: {
+    marginHorizontal: 16,
+    marginVertical: 24,
+    alignItems: "center",
+  },
+  cancelButton: {
+    borderWidth: 2,
+    borderColor: COLORS.destructive,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 200,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: COLORS.destructive,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelWarning: {
+    fontSize: 12,
+    color: COLORS.setIncomplete,
+    marginTop: 8,
+    fontStyle: "italic",
   },
 });

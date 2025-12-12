@@ -2,6 +2,9 @@ import {
   getWorkouts,
   getWorkoutById,
   getWorkoutSuggestions,
+  startWorkout,
+  finishWorkout,
+  cancelWorkout,
 } from '../workoutApi';
 
 describe('workoutApi', () => {
@@ -329,5 +332,122 @@ describe('workoutApi', () => {
       },
       10000
     ); // 10 second timeout to allow for 5 second delay
+  });
+
+  describe('Workout Actions', () => {
+    const testBackendUrl = 'http://localhost:8000';
+    const testWorkoutId = '214b3e7e-d595-4e2e-bb9e-7485f0d726bf';
+
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.resetAllMocks();
+    });
+
+    describe('startWorkout', () => {
+      it('should start a workout', async () => {
+        const mockResponse = {
+          id: testWorkoutId,
+          template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+          date: '2026-03-02',
+          start_time: '2026-03-02T14:30:00',
+          end_time: null,
+          exercises: [],
+          created_at: '2025-12-11T00:49:18.299067',
+          updated_at: '2026-03-02T14:30:00',
+        };
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        });
+
+        const result = await startWorkout(testBackendUrl, testWorkoutId);
+
+        expect(global.fetch).toHaveBeenCalledWith(
+          `http://localhost:8000/api/v1/workouts/${testWorkoutId}/start`,
+          expect.objectContaining({ method: 'POST' })
+        );
+        expect(result.start_time).toBe('2026-03-02T14:30:00');
+        expect(result.end_time).toBeNull();
+      });
+    });
+
+    describe('finishWorkout', () => {
+      it('should finish a workout', async () => {
+        const mockResponse = {
+          id: testWorkoutId,
+          template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+          date: '2026-03-02',
+          start_time: '2026-03-02T14:30:00',
+          end_time: '2026-03-02T15:30:00',
+          exercises: [],
+          created_at: '2025-12-11T00:49:18.299067',
+          updated_at: '2026-03-02T15:30:00',
+        };
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        });
+
+        const result = await finishWorkout(testBackendUrl, testWorkoutId);
+
+        expect(global.fetch).toHaveBeenCalledWith(
+          `http://localhost:8000/api/v1/workouts/${testWorkoutId}/finish`,
+          expect.objectContaining({ method: 'POST' })
+        );
+        expect(result.end_time).toBe('2026-03-02T15:30:00');
+      });
+    });
+
+    describe('cancelWorkout', () => {
+      it('should cancel a workout and reset completions', async () => {
+        const mockResponse = {
+          id: testWorkoutId,
+          template_id: '4860c265-da2a-4c34-bcac-c7cbded5471a',
+          date: '2026-03-02',
+          start_time: null,
+          end_time: null,
+          exercises: [
+            {
+              name: 'Bench Press',
+              target_sets: 3,
+              target_rep_min: 8,
+              target_rep_max: 10,
+              sets: [
+                {
+                  reps: 10,
+                  weight: 135,
+                  rest_seconds: 90,
+                  completed: false,
+                  notes: null,
+                },
+              ],
+              notes: null,
+            },
+          ],
+          created_at: '2025-12-11T00:49:18.299067',
+          updated_at: '2026-03-02T15:30:00',
+        };
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse,
+        });
+
+        const result = await cancelWorkout(testBackendUrl, testWorkoutId);
+
+        expect(global.fetch).toHaveBeenCalledWith(
+          `http://localhost:8000/api/v1/workouts/${testWorkoutId}/cancel`,
+          expect.objectContaining({ method: 'POST' })
+        );
+        expect(result.start_time).toBeNull();
+        expect(result.end_time).toBeNull();
+        expect(result.exercises[0].sets[0].completed).toBe(false);
+      });
+    });
   });
 });
