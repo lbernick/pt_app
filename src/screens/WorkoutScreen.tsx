@@ -8,7 +8,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
-import { WorkoutApi, WorkoutSuggestionsResponse } from "../types/workout";
+import {
+  WorkoutApi,
+  WorkoutSuggestionsResponse,
+  SetInstance,
+} from "../types/workout";
 import {
   getWorkouts,
   getWorkoutSuggestions,
@@ -186,6 +190,110 @@ export default function WorkoutScreen() {
     }
   };
 
+  const handleAddSet = async (exerciseIndex: number) => {
+    if (!workout) return;
+
+    const status = getWorkoutStatus();
+    if (status !== "in_progress") {
+      return;
+    }
+
+    // Save previous state for rollback
+    const previousWorkout = workout;
+
+    // Get the previous set to copy defaults
+    const currentExercise = workout.exercises[exerciseIndex];
+    const previousSet =
+      currentExercise.sets[currentExercise.sets.length - 1];
+
+    // Create new set with defaults from previous set
+    const newSet: SetInstance = {
+      reps: previousSet?.reps ?? 10,
+      weight: previousSet?.weight ?? undefined,
+      rest_seconds: previousSet?.rest_seconds ?? 60,
+      completed: false,
+      notes: null,
+    };
+
+    // Immutable update: clone workout structure
+    const optimisticWorkout = { ...workout };
+    optimisticWorkout.exercises = [...workout.exercises];
+    optimisticWorkout.exercises[exerciseIndex] = {
+      ...workout.exercises[exerciseIndex],
+    };
+    optimisticWorkout.exercises[exerciseIndex].sets = [
+      ...workout.exercises[exerciseIndex].sets,
+      newSet, // Add new set at the end
+    ];
+
+    // Optimistic UI update
+    setWorkout(optimisticWorkout);
+    setActionError(null);
+
+    try {
+      const updatedWorkoutFromApi = await updateWorkoutExercises(
+        backendUrl,
+        workout.id,
+        optimisticWorkout.exercises,
+      );
+      setWorkout(updatedWorkoutFromApi);
+    } catch (err) {
+      console.error("Failed to add set:", err);
+      setActionError(err instanceof Error ? err.message : "Failed to add set");
+      setWorkout(previousWorkout); // Revert on error
+    }
+  };
+
+  const handleDeleteSet = async (
+    exerciseIndex: number,
+    setIndex: number,
+  ) => {
+    if (!workout) return;
+
+    const status = getWorkoutStatus();
+    if (status !== "in_progress") {
+      return;
+    }
+
+    // Don't allow deleting the last set
+    if (workout.exercises[exerciseIndex].sets.length <= 1) {
+      setActionError("Cannot delete the last set");
+      return;
+    }
+
+    // Save previous state for rollback
+    const previousWorkout = workout;
+
+    // Immutable update: clone workout structure and remove set
+    const optimisticWorkout = { ...workout };
+    optimisticWorkout.exercises = [...workout.exercises];
+    optimisticWorkout.exercises[exerciseIndex] = {
+      ...workout.exercises[exerciseIndex],
+    };
+    optimisticWorkout.exercises[exerciseIndex].sets = workout.exercises[
+      exerciseIndex
+    ].sets.filter((_, index) => index !== setIndex);
+
+    // Optimistic UI update
+    setWorkout(optimisticWorkout);
+    setActionError(null);
+
+    try {
+      const updatedWorkoutFromApi = await updateWorkoutExercises(
+        backendUrl,
+        workout.id,
+        optimisticWorkout.exercises,
+      );
+      setWorkout(updatedWorkoutFromApi);
+    } catch (err) {
+      console.error("Failed to delete set:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to delete set",
+      );
+      setWorkout(previousWorkout); // Revert on error
+    }
+  };
+
   const getWorkoutStatus = (): "not_started" | "in_progress" | "finished" => {
     if (!workout) return "not_started";
     if (workout.end_time) return "finished";
@@ -350,6 +458,16 @@ export default function WorkoutScreen() {
           {set.rest_seconds && (
             <Text style={styles.restTime}>{set.rest_seconds}s rest</Text>
           )}
+
+          {/* Delete button */}
+          {!isDisabled && (
+            <TouchableOpacity
+              onPress={() => handleDeleteSet(exerciseIndex, setIndex)}
+              style={styles.deleteButton}
+            >
+              <Text style={styles.deleteButtonText}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
         {set.notes && <Text style={styles.setNotes}>{set.notes}</Text>}
       </View>
@@ -468,6 +586,16 @@ export default function WorkoutScreen() {
 
           {exerciseInstance.sets.map((set, setIndex) =>
             renderSet(set, exerciseIndex, setIndex, exerciseInstance.name),
+          )}
+
+          {/* Add Set button */}
+          {getWorkoutStatus() === "in_progress" && !suggestionsLoading && (
+            <TouchableOpacity
+              onPress={() => handleAddSet(exerciseIndex)}
+              style={styles.addSetButton}
+            >
+              <Text style={styles.addSetButtonText}>+ Add Set</Text>
+            </TouchableOpacity>
           )}
         </View>
       ))}
@@ -720,5 +848,34 @@ const styles = StyleSheet.create({
     color: COLORS.setIncomplete,
     marginTop: 8,
     fontStyle: "italic",
+  },
+  deleteButton: {
+    marginLeft: 8,
+    padding: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteButtonText: {
+    color: COLORS.destructive,
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  addSetButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: COLORS.exerciseTitle,
+    borderStyle: "dashed",
+    backgroundColor: COLORS.cardBackground,
+  },
+  addSetButtonText: {
+    color: COLORS.exerciseTitle,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
