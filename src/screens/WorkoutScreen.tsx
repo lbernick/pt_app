@@ -203,8 +203,7 @@ export default function WorkoutScreen() {
 
     // Get the previous set to copy defaults
     const currentExercise = workout.exercises[exerciseIndex];
-    const previousSet =
-      currentExercise.sets[currentExercise.sets.length - 1];
+    const previousSet = currentExercise.sets[currentExercise.sets.length - 1];
 
     // Create new set with defaults from previous set
     const newSet: SetInstance = {
@@ -244,10 +243,7 @@ export default function WorkoutScreen() {
     }
   };
 
-  const handleDeleteSet = async (
-    exerciseIndex: number,
-    setIndex: number,
-  ) => {
+  const handleDeleteSet = async (exerciseIndex: number, setIndex: number) => {
     if (!workout) return;
 
     const status = getWorkoutStatus();
@@ -601,8 +597,7 @@ export default function WorkoutScreen() {
       ))}
 
       {/* Cancel button - bottom */}
-      {(getWorkoutStatus() === "in_progress" ||
-        getWorkoutStatus() === "finished") && (
+      {getWorkoutStatus() === "in_progress" && (
         <View style={styles.cancelContainer}>
           <TouchableOpacity
             onPress={handleCancelWorkout}
@@ -618,9 +613,7 @@ export default function WorkoutScreen() {
               <Text style={styles.cancelButtonText}>Cancel Workout</Text>
             )}
           </TouchableOpacity>
-          <Text style={styles.cancelWarning}>
-            This will reset all progress
-          </Text>
+          <Text style={styles.cancelWarning}>This will reset all progress</Text>
         </View>
       )}
     </ScrollView>
