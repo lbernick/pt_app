@@ -9,7 +9,7 @@ import { OnboardingMessage, OnboardingState } from "../types/onboarding";
 import { generateTrainingPlan } from "../services/trainingPlanApi";
 
 type OnboardingStackParamList = {
-  Onboarding: { backendUrl: string };
+  Onboarding: { backendUrl: string; onPlanCreated?: () => void };
   TrainingPlan: { backendUrl: string };
 };
 
@@ -37,7 +37,7 @@ const COLORS = {
 export default function OnboardingScreen() {
   const route = useRoute<OnboardingScreenRouteProp>();
   const navigation = useNavigation<OnboardingScreenNavigationProp>();
-  const { backendUrl } = route.params;
+  const { backendUrl, onPlanCreated } = route.params;
 
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [onboardingHistory, setOnboardingHistory] = useState<
@@ -66,8 +66,13 @@ export default function OnboardingScreen() {
 
       console.log("Training plan generated successfully");
 
-      // Navigate to TrainingPlanScreen
-      navigation.navigate("TrainingPlan", { backendUrl });
+      // Call the callback to transition to RegularApp
+      if (onPlanCreated) {
+        onPlanCreated();
+      } else {
+        // Fallback: navigate to TrainingPlanScreen (for backwards compatibility)
+        navigation.navigate("TrainingPlan", { backendUrl });
+      }
     } catch (error) {
       console.error("Failed to generate training plan:", error);
       setPlanError(

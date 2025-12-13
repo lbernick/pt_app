@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -6,11 +8,21 @@ import TrainingPlanScreen from "./src/screens/TrainingPlanScreen";
 import WorkoutScreen from "./src/screens/WorkoutScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import { config, safeConfig } from "./src/config/env";
+import { getTrainingPlan } from "./src/services/trainingPlanApi";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function OnboardingApp() {
+const COLORS = {
+  white: "#FFFFFF",
+  loadingIndicator: "#007AFF",
+};
+
+interface OnboardingAppProps {
+  onPlanCreated: () => void;
+}
+
+function OnboardingApp({ onPlanCreated }: OnboardingAppProps) {
   return (
     <NavigationContainer>
       <Stack.Navigator>
@@ -18,7 +30,10 @@ function OnboardingApp() {
           name="Onboarding"
           component={OnboardingScreen}
           options={{ title: "Get Started" }}
-          initialParams={{ backendUrl: config.backendUrl }}
+          initialParams={{
+            backendUrl: config.backendUrl,
+            onPlanCreated: onPlanCreated,
+          }}
         />
         <Stack.Screen
           name="TrainingPlan"
@@ -58,10 +73,53 @@ function RegularApp() {
 }
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasPlan, setHasPlan] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkForTrainingPlan();
+  }, []);
+
+  const checkForTrainingPlan = async () => {
+    setIsLoading(true);
+    try {
+      await getTrainingPlan(config.backendUrl);
+      // Plan exists
+      setHasPlan(true);
+    } catch (error) {
+      // 404 or other error - assume no plan
+      console.log("No training plan found, showing onboarding", error);
+      setHasPlan(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   console.log("Starting app with config:", safeConfig);
-  if (config.appMode === "onboarding") {
-    return <OnboardingApp />;
+
+  // Show loading spinner while checking for plan
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.loadingIndicator} testID="loading-indicator" />
+      </View>
+    );
   }
 
+  // Show onboarding if no plan exists
+  if (hasPlan === false) {
+    return <OnboardingApp onPlanCreated={() => setHasPlan(true)} />;
+  }
+
+  // Show regular app if plan exists
   return <RegularApp />;
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+  },
+});

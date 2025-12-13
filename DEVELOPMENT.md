@@ -61,12 +61,6 @@ Available environment variables:
   - Default: `http://localhost:8000`
   - Example: `http://192.168.1.100:8000`
 
-- **`EXPO_PUBLIC_APP_MODE`** (optional)
-  - App mode: `onboarding` or `regular`
-  - Default: `regular`
-  - **Onboarding mode**: Shows only the chat screen with no tabs - designed for initial user onboarding
-  - **Regular mode**: Shows full app with workout, history, and chat tabs
-
 - **`EXPO_PUBLIC_AUTH_TOKEN`** (optional)
   - Authentication token for API requests
   - If provided, all API requests will include an `Authorization: Bearer <token>` header
@@ -81,46 +75,42 @@ Example `.env` file:
 # Backend API URL
 EXPO_PUBLIC_BACKEND_URL=http://localhost:8000
 
-# App Mode
-EXPO_PUBLIC_APP_MODE=regular
-
 # Authentication Token (optional)
 EXPO_PUBLIC_AUTH_TOKEN=your-secret-token-here
 ```
 
-### App Modes
+### Dynamic Navigation
 
-The app supports two modes that can be configured via the `EXPO_PUBLIC_APP_MODE` environment variable:
+The app automatically determines which screen to show based on whether a training plan exists on the backend:
 
-#### Onboarding Mode
-```bash
-EXPO_PUBLIC_APP_MODE=onboarding
-```
-- Displays dedicated **OnboardingScreen** with chat interface
-- No bottom navigation tabs
-- Ideal for new user onboarding flows
-- Single-screen focused experience with progress tracking
-- **Onboarding Flow**:
-  - Shows welcome header with "Welcome to PT App" title
-  - Displays progress percentage based on collected onboarding data
-  - Automatically initiates conversation on screen load
-  - Calls `POST /api/v1/onboarding/message` with conversation history
-  - Displays assistant messages and collects user responses via chat UI
-  - Continues conversation until `is_complete: true` is received
-  - Shows "Onboarding Complete! ✓" message when finished
-  - Logs completion and onboarding state to console
-  - Note: Mode switching to regular mode requires app restart with updated env variable
+#### App Startup Flow
 
-#### Regular Mode (Default)
-```bash
-EXPO_PUBLIC_APP_MODE=regular
-```
-- Full app experience with three tabs:
-  - **Workout**: Today's workout with exercise tracking
-  - **History**: Past and upcoming workouts (list and calendar views)
-  - **Chat**: AI-powered personal training assistant
+1. **Loading State**
+   - On app startup, the app shows a loading spinner
+   - Makes a `GET /api/v1/training-plan` request to check for an existing plan
 
-To switch modes, update the `.env` file and restart the development server.
+2. **No Training Plan (404 Response)**
+   - Displays the **OnboardingScreen** with chat interface
+   - No bottom navigation tabs
+   - Single-screen focused experience with progress tracking
+   - **Onboarding Flow**:
+     - Shows welcome header with "Welcome to PT App" title
+     - Displays progress percentage based on collected onboarding data
+     - Automatically initiates conversation on screen load
+     - Calls `POST /api/v1/onboarding/message` with conversation history
+     - Displays assistant messages and collects user responses via chat UI
+     - Continues conversation until `is_complete: true` is received
+     - Shows "Onboarding Complete! ✓" message when finished
+     - Generates training plan via `POST /api/v1/training-plan`
+     - Automatically transitions to the main app after plan is created
+
+3. **Training Plan Exists**
+   - Shows full app experience with three tabs:
+     - **Workout**: Today's workout with exercise tracking
+     - **History**: Past and upcoming workouts (list and calendar views)
+     - **Training Plan**: View and manage your training plan
+
+The navigation is dynamic and based on backend state - no environment variable configuration needed.
 
 ## Running the App
 
