@@ -4,3 +4,6 @@
 - After making code changes, run tests, lint, and typechecking and make sure they pass.
 If you need to ignore a lint rule, give an explanation why it's necessary.
 - Where possible, practice test driven development; i.e. write tests for features first, then make sure the tests pass once the feature is implemented.
+
+# Dependencies
+- After changing dependencies, run `npx expo-doctor` and resolve any issues that arise if possible.
