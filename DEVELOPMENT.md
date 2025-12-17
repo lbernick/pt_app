@@ -60,6 +60,8 @@ Available environment variables:
   - Backend API URL
   - Default: `http://localhost:8000`
   - Example: `http://192.168.1.100:8000`
+  
+To get your IP: `ipconfig getifaddr en0`
 
 - **`EXPO_PUBLIC_AUTH_TOKEN`** (optional)
   - Authentication token for API requests
@@ -68,16 +70,6 @@ Available environment variables:
   - Example: `your-secret-token-here`
 
 This is temporary for local development; login support will be added with firebase auth.
-
-Example `.env` file:
-
-```bash
-# Backend API URL
-EXPO_PUBLIC_BACKEND_URL=http://localhost:8000
-
-# Authentication Token (optional)
-EXPO_PUBLIC_AUTH_TOKEN=your-secret-token-here
-```
 
 ### Dynamic Navigation
 
@@ -151,6 +143,19 @@ npm run web
 3. Scan the QR code:
    - **iOS**: Use the Camera app
    - **Android**: Use the Expo Go app's QR scanner
+
+#### With Development Build
+
+These steps build and run with XCode for free. You can also use EAS but this requires a paid Apple Developer account.
+
+1. Sign into Apple Developer account in Xcode
+2. Open app -> Targets -> Signing and Capabilities -> select developer account and "automatically manage signing". See https://github.com/expo/fyi/blob/main/setup-xcode-signing.md
+3. On iPhone, enable developer mode (Settings -> Privacy and Security -> Developer mode)
+4. Plug in iPhone, select "Trust this Device"
+5. Run `npx expo run:ios --device` and select the iPhone to build and install the app on the phone
+6. On iPhone, trust your developer account (Settings -> General -> VPN and Device Management -> Developer App)
+7. Make sure iPhone and laptop are on the same WiFi network
+8. Start the app with `npx expo start --dev-client`. You can force refresh with `--clear`.
 
 ## Development Workflow
 

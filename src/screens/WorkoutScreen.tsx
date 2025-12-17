@@ -66,7 +66,8 @@ export default function WorkoutScreen() {
       setSuggestionsError(null);
 
       try {
-        const workouts = await getWorkouts(backendUrl, "2026-03-02");
+        const today = new Date().toISOString().split("T")[0];
+        const workouts = await getWorkouts(backendUrl, today);
 
         if (workouts.length > 0) {
           const todaysWorkout = workouts[0];
