@@ -42,3 +42,5 @@ yarn-error.*
 /android
 
 .claude
+GoogleService-Info.plist
+google-services.json

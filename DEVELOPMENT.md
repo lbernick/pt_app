@@ -263,6 +263,24 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
+If that doesn't work:
+
+```bash
+rm -rf ios/build
+rm -rf ios/Pods
+rm -rf ios/Podfile.lock
+rm -rf node_modules
+
+npm install
+
+cd ios
+pod install
+cd ..
+
+npx expo prebuild --clean
+npx expo run:ios
+```
+
 **iOS simulator not opening:**
 - Ensure Xcode is installed
 - Run `xcode-select --install` if needed
