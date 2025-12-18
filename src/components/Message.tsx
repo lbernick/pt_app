@@ -1,12 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { Message as MessageType } from '../types/message';
+import { StyleSheet, Text, View } from "react-native";
+import { Message as MessageType } from "../types/message";
 
 const COLORS = {
-  userBubble: '#007AFF',
-  aiBubble: '#E5E5EA',
-  userText: '#FFFFFF',
-  aiText: '#000000',
-  timestamp: '#8E8E93',
+  userBubble: "#007AFF",
+  aiBubble: "#E5E5EA",
+  userText: "#FFFFFF",
+  aiText: "#000000",
+  timestamp: "#8E8E93",
 };
 
 interface MessageProps {
@@ -14,14 +14,7 @@ interface MessageProps {
 }
 
 export default function Message({ message }: MessageProps) {
-  const isUser = message.sender === 'user';
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
+  const isUser = message.sender === "user";
 
   return (
     <View
@@ -31,21 +24,12 @@ export default function Message({ message }: MessageProps) {
       ]}
     >
       <View
-        style={[
-          styles.bubble,
-          isUser ? styles.userBubble : styles.aiBubble,
-        ]}
+        style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
       >
         <Text
-          style={[
-            styles.messageText,
-            isUser ? styles.userText : styles.aiText,
-          ]}
+          style={[styles.messageText, isUser ? styles.userText : styles.aiText]}
         >
           {message.text}
-        </Text>
-        <Text style={styles.timestamp}>
-          {formatTime(message.timestamp)}
         </Text>
       </View>
     </View>
@@ -54,18 +38,18 @@ export default function Message({ message }: MessageProps) {
 
 const styles = StyleSheet.create({
   messageContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginVertical: 4,
     marginHorizontal: 12,
   },
   userContainer: {
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   aiContainer: {
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
   },
   bubble: {
-    maxWidth: '75%',
+    maxWidth: "75%",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
@@ -87,11 +71,5 @@ const styles = StyleSheet.create({
   },
   aiText: {
     color: COLORS.aiText,
-  },
-  timestamp: {
-    fontSize: 11,
-    color: COLORS.timestamp,
-    marginTop: 4,
-    alignSelf: 'flex-end',
   },
 });
