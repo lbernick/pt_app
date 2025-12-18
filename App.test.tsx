@@ -19,9 +19,13 @@ jest.mock("./src/hooks/useApiClient", () => ({
 }));
 
 // Create a mock auth context that can be updated per test
+const mockUser = {
+  uid: "test-user-id",
+  email: "test@example.com",
+};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mockAuthContext: any = {
-  user: { uid: "test-user-id", email: "test@example.com", getIdToken: () => Promise.resolve("mock-token") },
+  user: mockUser,
   loading: false,
   signIn: jest.fn(),
   signUp: jest.fn(),
@@ -31,15 +35,24 @@ let mockAuthContext: any = {
 
 // Mock Firebase Auth
 jest.mock("@react-native-firebase/auth", () => {
-  return () => ({
-    onAuthStateChanged: jest.fn((callback) => {
-      callback(mockAuthContext.user);
+  const mockAuthInstance = {
+    currentUser: mockUser,
+  };
+  return {
+    __esModule: true,
+
+    // default export: auth()
+    default: jest.fn(() => mockAuthInstance),
+    onAuthStateChanged: jest.fn((_auth, callback) => {
+      callback(mockUser);
       return jest.fn();
     }),
     signInWithEmailAndPassword: jest.fn(),
     createUserWithEmailAndPassword: jest.fn(),
     signOut: jest.fn(),
-  });
+    getIdToken: jest.fn(() => Promise.resolve("mock-token")),
+    connectAuthEmulator: jest.fn(),
+  };
 });
 
 // Mock the AuthContext
@@ -50,14 +63,16 @@ describe("App", () => {
     jest.clearAllMocks();
     // Reset to authenticated user by default
     mockAuthContext = {
-      user: { uid: "test-user-id", email: "test@example.com", getIdToken: () => Promise.resolve("mock-token") },
+      user: mockUser,
       loading: false,
       signIn: jest.fn(),
       signUp: jest.fn(),
       signOut: jest.fn(),
       getIdToken: jest.fn(() => Promise.resolve("mock-token")),
     };
-    jest.spyOn(AuthContext, "useAuth").mockImplementation(() => mockAuthContext);
+    jest
+      .spyOn(AuthContext, "useAuth")
+      .mockImplementation(() => mockAuthContext);
   });
 
   it("shows loading spinner initially", () => {
@@ -114,7 +129,9 @@ describe("App", () => {
   });
   it("renders sign in screen when not authenticated", () => {
     mockAuthContext.user = null;
-    jest.spyOn(AuthContext, "useAuth").mockImplementation(() => mockAuthContext);
+    jest
+      .spyOn(AuthContext, "useAuth")
+      .mockImplementation(() => mockAuthContext);
     render(<App />);
     expect(screen.getAllByText(/Sign In/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Welcome back to PT App/i)).toBeTruthy();
@@ -122,7 +139,9 @@ describe("App", () => {
 
   it("renders email and password inputs on sign in screen", () => {
     mockAuthContext.user = null;
-    jest.spyOn(AuthContext, "useAuth").mockImplementation(() => mockAuthContext);
+    jest
+      .spyOn(AuthContext, "useAuth")
+      .mockImplementation(() => mockAuthContext);
     render(<App />);
     expect(screen.getByPlaceholderText(/Email/i)).toBeTruthy();
     expect(screen.getByPlaceholderText(/Password/i)).toBeTruthy();
@@ -130,7 +149,9 @@ describe("App", () => {
 
   it("renders sign up link on sign in screen", () => {
     mockAuthContext.user = null;
-    jest.spyOn(AuthContext, "useAuth").mockImplementation(() => mockAuthContext);
+    jest
+      .spyOn(AuthContext, "useAuth")
+      .mockImplementation(() => mockAuthContext);
     render(<App />);
     expect(screen.getByText(/Don't have an account\?/i)).toBeTruthy();
     expect(screen.getByText(/Sign Up/i)).toBeTruthy();

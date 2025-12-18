@@ -1,9 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import auth, {
+  FirebaseAuthTypes,
+  connectAuthEmulator,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  getIdToken,
+  signOut,
+} from "@react-native-firebase/auth";
 import { AuthContextType, AuthProviderProps } from "../types/auth";
 import { config } from "../config/env";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const authInstance = auth();
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
@@ -15,12 +24,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log(
         `Using Firebase Auth Emulator at ${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`,
       );
-      auth().useEmulator(
+      connectAuthEmulator(
+        authInstance,
         `http://${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`,
       );
     }
 
-    const unsubscribe = auth().onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged(authInstance, (user) => {
       setUser(user);
       setLoading(false);
     });
@@ -29,25 +39,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await auth().signInWithEmailAndPassword(email, password);
+    await signInWithEmailAndPassword(authInstance, email, password);
   };
 
   const signUp = async (email: string, password: string) => {
-    await auth().createUserWithEmailAndPassword(email, password);
+    await createUserWithEmailAndPassword(authInstance, email, password);
   };
 
-  const signOut = async () => {
-    await auth().signOut();
+  const signOutFn = async () => {
+    await signOut(authInstance);
   };
 
-  const getIdToken = async (): Promise<string | null> => {
+  const getIdTokenFn = async (): Promise<string | null> => {
     if (!user) return null;
-    return user.getIdToken();
+    return getIdToken(user);
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signIn, signUp, signOut, getIdToken }}
+      value={{
+        user,
+        loading,
+        signIn,
+        signUp,
+        signOut: signOutFn,
+        getIdToken: getIdTokenFn,
+      }}
     >
       {children}
     </AuthContext.Provider>
