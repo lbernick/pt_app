@@ -59,8 +59,15 @@ export default function HistoryScreen() {
 
       try {
         const apiUrl = `${backendUrl}/api/v1/workouts`;
-        const fetchedWorkouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, { method: "GET" });
-        setWorkouts(fetchedWorkouts);
+        const fetchedWorkouts = await apiClient.fetchJson<WorkoutApi[]>(
+          apiUrl,
+          { method: "GET" },
+        );
+        // Sort workouts by date in descending order (earliest first)
+        const sortedWorkouts = fetchedWorkouts.sort((a, b) =>
+          a.date.localeCompare(b.date),
+        );
+        setWorkouts(sortedWorkouts);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to fetch workouts",
@@ -97,7 +104,10 @@ export default function HistoryScreen() {
 
         try {
           const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}`;
-          const detailedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "GET" });
+          const detailedWorkout = await apiClient.fetchJson<WorkoutApi>(
+            apiUrl,
+            { method: "GET" },
+          );
           setDetailedWorkouts((prev) =>
             new Map(prev).set(workoutId, detailedWorkout),
           );
@@ -174,11 +184,6 @@ export default function HistoryScreen() {
               {formatDate(item.date)}
               {todayWorkout && " (Today)"}
             </Text>
-            {item.start_time && item.end_time && (
-              <Text style={styles.timeText}>
-                {item.start_time} - {item.end_time}
-              </Text>
-            )}
           </View>
           {past && completed && (
             <View style={styles.completedBadge}>
@@ -206,7 +211,7 @@ export default function HistoryScreen() {
               detailedWorkout.exercises.map((exercise, exerciseIndex) => (
                 <View key={exerciseIndex} style={styles.exerciseDetailCard}>
                   <Text style={styles.exerciseDetailName}>{exercise.name}</Text>
-                  {!past && (
+                  {!completed && (
                     <Text style={styles.targetReps}>
                       Target: {exercise.target_rep_min}-
                       {exercise.target_rep_max} reps × {exercise.target_sets}{" "}
@@ -217,6 +222,7 @@ export default function HistoryScreen() {
                     <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
                   )}
                   {past &&
+                    completed &&
                     exercise.sets.map((set, setIndex) => (
                       <View key={setIndex} style={styles.setRow}>
                         <Text style={styles.setNumber}>
