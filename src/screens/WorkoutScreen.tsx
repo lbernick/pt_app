@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  TextInput,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import {
@@ -16,6 +15,7 @@ import {
   SetInstance,
 } from "../types/workout";
 import { useApiClient } from "../hooks/useApiClient";
+import SetRow from "../components/SetRow";
 
 type WorkoutScreenRouteProp = RouteProp<
   { Workout: { backendUrl: string } },
@@ -336,11 +336,7 @@ export default function WorkoutScreen() {
       return;
     }
 
-    // Don't allow deleting the last set
-    if (workout.exercises[exerciseIndex].sets.length <= 1) {
-      setActionError("Cannot delete the last set");
-      return;
-    }
+    // TODO: If the last set is deleted, delete the exercise
 
     // Save previous state for rollback
     const previousWorkout = workout;
@@ -695,122 +691,46 @@ export default function WorkoutScreen() {
     setIndex: number,
     exerciseName: string,
   ) => {
-    const setColor = set.completed ? COLORS.setCompleted : COLORS.setIncomplete;
-
-    // Determine if checkbox should be disabled
+    // Compute derived values
     const workoutStatus = getWorkoutStatus();
     const isDisabled = workoutStatus !== "in_progress" || suggestionsLoading;
+    const showCheckbox = workoutStatus !== "not_started";
 
-    // Get display values from input buffers (if user is typing) or from workout data
     const repsBuffer = inputBuffers[exerciseIndex]?.[setIndex]?.reps;
     const weightBuffer = inputBuffers[exerciseIndex]?.[setIndex]?.weight;
-
-    const displayReps =
-      repsBuffer !== undefined
-        ? repsBuffer
-        : set.reps !== undefined && set.reps !== null
-          ? String(set.reps)
-          : "";
-
-    const displayWeight =
-      weightBuffer !== undefined
-        ? weightBuffer
-        : set.weight !== undefined && set.weight !== null
-          ? String(set.weight)
-          : "";
-
-    // Get validation errors
     const repsError = validationErrors[exerciseIndex]?.[setIndex]?.reps;
     const weightError = validationErrors[exerciseIndex]?.[setIndex]?.weight;
 
+    const suggestedReps = suggestions?.exercises.find(
+      (ex) => ex.name === exerciseName,
+    )?.sets[setIndex]?.reps;
+    const suggestedWeight = suggestions?.exercises.find(
+      (ex) => ex.name === exerciseName,
+    )?.sets[setIndex]?.weight;
+
     return (
-      <View key={setIndex}>
-        <View style={styles.setRow}>
-          {workoutStatus !== "not_started" && (
-            <TouchableOpacity
-              onPress={() => toggleSetCompletion(exerciseIndex, setIndex)}
-              style={styles.checkbox}
-              disabled={isDisabled}
-            >
-              <View
-                style={[
-                  styles.checkboxInner,
-                  set.completed && styles.checkboxChecked,
-                  isDisabled && styles.checkboxDisabled,
-                ]}
-              >
-                {set.completed && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-            </TouchableOpacity>
-          )}
-          <Text style={[styles.setNumber, { color: setColor }]}>
-            {setIndex + 1}
-          </Text>
-
-          {/* Editable input fields */}
-          <View style={styles.inputGroup}>
-            {/* Reps Input */}
-            <TextInput
-              style={[
-                styles.setInput,
-                styles.repsInput,
-                repsError && styles.inputError,
-              ]}
-              value={displayReps}
-              onChangeText={(val) =>
-                handleFieldChange(exerciseIndex, setIndex, "reps", val)
-              }
-              onBlur={() =>
-                handleFieldBlur(exerciseIndex, setIndex, "reps", displayReps)
-              }
-              keyboardType="number-pad"
-              maxLength={4}
-              editable={!isDisabled}
-              selectTextOnFocus
-            />
-
-            <Text style={styles.timesSymbol}>×</Text>
-
-            {/* Weight Input */}
-            <TextInput
-              style={[
-                styles.setInput,
-                styles.weightInput,
-                weightError && styles.inputError,
-              ]}
-              value={displayWeight}
-              onChangeText={(val) =>
-                handleFieldChange(exerciseIndex, setIndex, "weight", val)
-              }
-              onBlur={() =>
-                handleFieldBlur(
-                  exerciseIndex,
-                  setIndex,
-                  "weight",
-                  displayWeight,
-                )
-              }
-              placeholder="0"
-              keyboardType="decimal-pad"
-              maxLength={5}
-              editable={!isDisabled}
-              selectTextOnFocus
-            />
-            <Text style={styles.weightUnit}>lbs</Text>
-          </View>
-
-          {/* Delete button */}
-          {!isDisabled && (
-            <TouchableOpacity
-              onPress={() => handleDeleteSet(exerciseIndex, setIndex)}
-              style={styles.deleteButton}
-            >
-              <Text style={styles.deleteButtonText}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        {set.notes && <Text style={styles.setNotes}>{set.notes}</Text>}
-      </View>
+      <SetRow
+        key={setIndex}
+        set={set}
+        setIndex={setIndex}
+        exerciseIndex={exerciseIndex}
+        isDisabled={isDisabled}
+        showCheckbox={showCheckbox}
+        repsBuffer={repsBuffer}
+        weightBuffer={weightBuffer}
+        repsError={repsError}
+        weightError={weightError}
+        suggestedReps={suggestedReps}
+        suggestedWeight={suggestedWeight}
+        onFieldChange={(field, value) =>
+          handleFieldChange(exerciseIndex, setIndex, field, value)
+        }
+        onFieldBlur={(field, value) =>
+          handleFieldBlur(exerciseIndex, setIndex, field, value)
+        }
+        onToggleCompletion={() => toggleSetCompletion(exerciseIndex, setIndex)}
+        onDelete={() => handleDeleteSet(exerciseIndex, setIndex)}
+      />
     );
   };
 
@@ -1044,55 +964,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontStyle: "italic",
   },
-  setRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  checkbox: {
-    padding: 4,
-    marginRight: 8,
-  },
-  checkboxInner: {
-    width: 24,
-    height: 24,
-    borderWidth: 2,
-    borderColor: COLORS.setIncomplete,
-    borderRadius: 4,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.setCompleted,
-    borderColor: COLORS.setCompleted,
-  },
-  checkboxDisabled: {
-    opacity: 0.4,
-    backgroundColor: COLORS.border,
-  },
-  checkmark: {
-    color: COLORS.cardBackground,
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  setNumber: {
-    fontSize: 16,
-    fontWeight: "600",
-    width: 60,
-  },
-  restTime: {
-    fontSize: 14,
-    color: COLORS.setIncomplete,
-  },
-  setNotes: {
-    fontSize: 12,
-    color: COLORS.setIncomplete,
-    marginTop: 4,
-    marginLeft: 36,
-  },
   suggestionsLoadingContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -1181,18 +1052,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-
-  deleteButton: {
-    marginLeft: 8,
-    padding: 4,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  deleteButtonText: {
-    color: COLORS.destructive,
-    fontSize: 20,
-    fontWeight: "600",
-  },
   addSetButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1210,43 +1069,5 @@ const styles = StyleSheet.create({
     color: COLORS.exerciseTitle,
     fontSize: 14,
     fontWeight: "600",
-  },
-  inputGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 8,
-  },
-  setInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 16,
-    color: COLORS.text,
-    backgroundColor: COLORS.cardBackground,
-    textAlign: "center",
-  },
-  repsInput: {
-    width: 50,
-  },
-  weightInput: {
-    width: 60,
-  },
-  timesSymbol: {
-    fontSize: 16,
-    color: COLORS.text,
-    marginHorizontal: 4,
-  },
-  weightUnit: {
-    fontSize: 14,
-    color: COLORS.setIncomplete,
-    marginLeft: 2,
-    marginRight: 8,
-  },
-  inputError: {
-    borderColor: COLORS.destructive,
-    borderWidth: 2,
   },
 });
