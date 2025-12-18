@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import {
@@ -54,13 +55,48 @@ export default function WorkoutScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Field editing state
+  const [dirtyFields, setDirtyFields] = useState<{
+    [exerciseIndex: number]: {
+      [setIndex: number]: {
+        reps?: boolean;
+        weight?: boolean;
+      };
+    };
+  }>({});
+
+  const [inputBuffers, setInputBuffers] = useState<{
+    [exerciseIndex: number]: {
+      [setIndex: number]: {
+        reps?: string;
+        weight?: string;
+      };
+    };
+  }>({});
+
+  const [validationErrors, setValidationErrors] = useState<{
+    [exerciseIndex: number]: {
+      [setIndex: number]: {
+        reps?: string;
+        weight?: string;
+      };
+    };
+  }>({});
+
+  const [saveTimeoutId, setSaveTimeoutId] = useState<NodeJS.Timeout | null>(
+    null,
+  );
+
   const fetchSuggestionsInBackground = async (workoutId: string) => {
     setSuggestionsLoading(true);
     setSuggestionsError(null);
 
     try {
-      const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/suggestions`;
-      const suggestionsData = await apiClient.fetchJson<WorkoutSuggestionsResponse>(apiUrl, { method: "GET" });
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/suggest`;
+      const suggestionsData =
+        await apiClient.fetchJson<WorkoutSuggestionsResponse>(apiUrl, {
+          method: "POST",
+        });
       setSuggestions(suggestionsData);
     } catch (err) {
       console.error("Failed to fetch suggestions:", err);
@@ -82,7 +118,9 @@ export default function WorkoutScreen() {
       const today = new Date().toISOString().split("T")[0];
       const dateParam = today ? `?date=${today}` : "";
       const apiUrl = `${backendUrl}/api/v1/workouts${dateParam}`;
-      const workouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, { method: "GET" });
+      const workouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, {
+        method: "GET",
+      });
 
       if (workouts.length > 0) {
         const todaysWorkout = workouts[0];
@@ -100,9 +138,7 @@ export default function WorkoutScreen() {
         setLoading(false);
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch workout",
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch workout");
       setLoading(false);
     }
   };
@@ -117,6 +153,60 @@ export default function WorkoutScreen() {
   useEffect(() => {
     fetchTodaysWorkout();
   }, [backendUrl]);
+
+  // Apply AI suggestions when they arrive (but only to non-dirty fields)
+  useEffect(() => {
+    if (!suggestions || !workout) return;
+
+    let updatedWorkout = { ...workout };
+    let hasChanges = false;
+
+    workout.exercises.forEach((ex, exIdx) => {
+      const exSuggestion = suggestions.exercises.find(
+        (s) => s.name === ex.name,
+      );
+      if (!exSuggestion) return;
+
+      ex.sets.forEach((set, setIdx) => {
+        if (set.completed) return; // Don't change completed sets
+
+        const setSuggestion = exSuggestion.sets[setIdx];
+        if (!setSuggestion) return;
+
+        // Only apply if not dirty
+        const isRepsDirty = dirtyFields[exIdx]?.[setIdx]?.reps;
+        const isWeightDirty = dirtyFields[exIdx]?.[setIdx]?.weight;
+
+        if (!isRepsDirty && set.reps !== setSuggestion.reps) {
+          updatedWorkout = updateSetField(
+            updatedWorkout,
+            exIdx,
+            setIdx,
+            "reps",
+            setSuggestion.reps,
+          );
+          hasChanges = true;
+        }
+
+        const suggWeight =
+          setSuggestion.weight === null ? undefined : setSuggestion.weight;
+        if (!isWeightDirty && set.weight !== suggWeight) {
+          updatedWorkout = updateSetField(
+            updatedWorkout,
+            exIdx,
+            setIdx,
+            "weight",
+            suggWeight,
+          );
+          hasChanges = true;
+        }
+      });
+    });
+
+    if (hasChanges) {
+      setWorkout(updatedWorkout);
+    }
+  }, [suggestions, workout, dirtyFields]);
 
   const toggleSetCompletion = async (
     exerciseIndex: number,
@@ -146,9 +236,19 @@ export default function WorkoutScreen() {
       const suggestedValues = getSuggestedSet(exerciseName, setIndex);
 
       if (suggestedValues) {
-        updatedSet.reps = suggestedValues.reps;
-        updatedSet.weight =
-          suggestedValues.weight === null ? undefined : suggestedValues.weight;
+        // Check dirty tracking before applying
+        const isRepsDirty = dirtyFields[exerciseIndex]?.[setIndex]?.reps;
+        const isWeightDirty = dirtyFields[exerciseIndex]?.[setIndex]?.weight;
+
+        if (!isRepsDirty) {
+          updatedSet.reps = suggestedValues.reps;
+        }
+        if (!isWeightDirty) {
+          updatedSet.weight =
+            suggestedValues.weight === null
+              ? undefined
+              : suggestedValues.weight;
+        }
       }
       // If no suggestions, keep current reps/weight values
     }
@@ -176,10 +276,13 @@ export default function WorkoutScreen() {
     try {
       // Make API call with complete exercises array
       const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
-      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
-        method: "PUT",
-        body: { exercises: optimisticWorkout.exercises },
-      });
+      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
+        apiUrl,
+        {
+          method: "PATCH",
+          body: { exercises: optimisticWorkout.exercises },
+        },
+      );
 
       // On success: replace with server response
       setWorkout(updatedWorkoutFromApi);
@@ -234,10 +337,13 @@ export default function WorkoutScreen() {
 
     try {
       const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
-      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
-        method: "PUT",
-        body: { exercises: optimisticWorkout.exercises },
-      });
+      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
+        apiUrl,
+        {
+          method: "PATCH",
+          body: { exercises: optimisticWorkout.exercises },
+        },
+      );
       setWorkout(updatedWorkoutFromApi);
     } catch (err) {
       console.error("Failed to add set:", err);
@@ -279,10 +385,13 @@ export default function WorkoutScreen() {
 
     try {
       const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
-      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
-        method: "PUT",
-        body: { exercises: optimisticWorkout.exercises },
-      });
+      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
+        apiUrl,
+        {
+          method: "PATCH",
+          body: { exercises: optimisticWorkout.exercises },
+        },
+      );
       setWorkout(updatedWorkoutFromApi);
     } catch (err) {
       console.error("Failed to delete set:", err);
@@ -291,6 +400,195 @@ export default function WorkoutScreen() {
       );
       setWorkout(previousWorkout); // Revert on error
     }
+  };
+
+  const parseFieldValue = (
+    field: "reps" | "weight",
+    value: string,
+  ): number | undefined | null => {
+    const trimmed = value.trim();
+
+    // Empty weight = bodyweight (undefined)
+    if (field === "weight" && trimmed === "") {
+      return undefined;
+    }
+
+    // Empty reps = invalid
+    if (trimmed === "") {
+      return null;
+    }
+
+    const num = parseFloat(trimmed);
+
+    if (isNaN(num) || num <= 0) {
+      return null;
+    }
+
+    if (field === "reps") {
+      // Must be integer, max 9999
+      if (!Number.isInteger(num) || num > 9999) {
+        return null;
+      }
+    } else {
+      // Weight can have decimals, max 999.9
+      if (num > 999.9) {
+        return null;
+      }
+    }
+
+    return num;
+  };
+
+  const updateSetField = (
+    workout: WorkoutApi,
+    exerciseIndex: number,
+    setIndex: number,
+    field: "reps" | "weight",
+    value: number | undefined,
+  ): WorkoutApi => {
+    // Immutable update pattern (same as existing code)
+    const optimisticWorkout = { ...workout };
+    optimisticWorkout.exercises = [...workout.exercises];
+    optimisticWorkout.exercises[exerciseIndex] = {
+      ...workout.exercises[exerciseIndex],
+    };
+    optimisticWorkout.exercises[exerciseIndex].sets = [
+      ...workout.exercises[exerciseIndex].sets,
+    ];
+    optimisticWorkout.exercises[exerciseIndex].sets[setIndex] = {
+      ...optimisticWorkout.exercises[exerciseIndex].sets[setIndex],
+      [field]: value,
+    };
+    return optimisticWorkout;
+  };
+
+  const saveWorkoutToBackend = async (workoutToSave: WorkoutApi) => {
+    const previousWorkout = workout;
+    try {
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workoutToSave.id}/exercises`;
+      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
+        apiUrl,
+        {
+          method: "PATCH",
+          body: { exercises: workoutToSave.exercises },
+        },
+      );
+      setWorkout(updatedWorkoutFromApi);
+      setActionError(null);
+    } catch (err) {
+      console.error("Failed to update set values:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Failed to save changes",
+      );
+      // Rollback on error
+      setWorkout(previousWorkout);
+    }
+  };
+
+  const handleFieldChange = (
+    exerciseIndex: number,
+    setIndex: number,
+    field: "reps" | "weight",
+    value: string,
+  ) => {
+    // Update input buffer (temporary string storage)
+    setInputBuffers((prev) => ({
+      ...prev,
+      [exerciseIndex]: {
+        ...prev[exerciseIndex],
+        [setIndex]: {
+          ...prev[exerciseIndex]?.[setIndex],
+          [field]: value,
+        },
+      },
+    }));
+
+    // Validate and show error if invalid (but don't save yet)
+    const parsedValue = parseFieldValue(field, value);
+    if (parsedValue === null && value.trim() !== "") {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [exerciseIndex]: {
+          ...prev[exerciseIndex],
+          [setIndex]: {
+            ...prev[exerciseIndex]?.[setIndex],
+            [field]: "Must be a positive number",
+          },
+        },
+      }));
+    } else {
+      // Clear error
+      setValidationErrors((prev) => {
+        const newErrors = { ...prev };
+        if (newErrors[exerciseIndex]?.[setIndex]) {
+          delete newErrors[exerciseIndex][setIndex][field];
+        }
+        return newErrors;
+      });
+    }
+  };
+
+  const handleFieldBlur = async (
+    exerciseIndex: number,
+    setIndex: number,
+    field: "reps" | "weight",
+    value: string,
+  ) => {
+    // Parse and validate
+    const numValue = parseFieldValue(field, value);
+
+    if (numValue === null) {
+      // Invalid - revert to previous value
+      const currentValue =
+        workout!.exercises[exerciseIndex].sets[setIndex][field];
+      setInputBuffers((prev) => ({
+        ...prev,
+        [exerciseIndex]: {
+          ...prev[exerciseIndex],
+          [setIndex]: {
+            ...prev[exerciseIndex]?.[setIndex],
+            [field]:
+              currentValue !== undefined && currentValue !== null
+                ? String(currentValue)
+                : "",
+          },
+        },
+      }));
+      return;
+    }
+
+    // Mark field as dirty (prevents AI from overwriting)
+    setDirtyFields((prev) => ({
+      ...prev,
+      [exerciseIndex]: {
+        ...prev[exerciseIndex],
+        [setIndex]: {
+          ...prev[exerciseIndex]?.[setIndex],
+          [field]: true,
+        },
+      },
+    }));
+
+    // Update workout state (immutable pattern)
+    const updatedWorkout = updateSetField(
+      workout!,
+      exerciseIndex,
+      setIndex,
+      field,
+      numValue,
+    );
+    setWorkout(updatedWorkout);
+
+    // Debounced save to backend (500ms after last edit)
+    if (saveTimeoutId) {
+      clearTimeout(saveTimeoutId);
+    }
+
+    const timeoutId = setTimeout(() => {
+      saveWorkoutToBackend(updatedWorkout);
+    }, 500);
+
+    setSaveTimeoutId(timeoutId);
   };
 
   const getWorkoutStatus = (): "not_started" | "in_progress" | "finished" => {
@@ -335,7 +633,9 @@ export default function WorkoutScreen() {
 
     try {
       const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/start`;
-      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
+      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
+        method: "POST",
+      });
       setWorkout(updatedWorkout);
     } catch (err) {
       console.error("Failed to start workout:", err);
@@ -361,7 +661,9 @@ export default function WorkoutScreen() {
 
     try {
       const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/finish`;
-      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
+      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
+        method: "POST",
+      });
       setWorkout(updatedWorkout);
     } catch (err) {
       console.error("Failed to finish workout:", err);
@@ -394,7 +696,9 @@ export default function WorkoutScreen() {
 
     try {
       const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/cancel`;
-      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
+      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
+        method: "POST",
+      });
       setWorkout(updatedWorkout);
     } catch (err) {
       console.error("Failed to cancel workout:", err);
@@ -418,45 +722,113 @@ export default function WorkoutScreen() {
     // Get suggestions for this specific set
     const suggestedValues = getSuggestedSet(exerciseName, setIndex);
 
-    // Use suggested values if available, otherwise fall back to set data
-    const displayReps = suggestedValues?.reps ?? set.reps;
-    const displayWeight = suggestedValues?.weight ?? set.weight;
-    const weightText = displayWeight ? `${displayWeight} lbs` : "Bodyweight";
-
-    // Visual indicator if using suggestions
-    const usingSuggestions = suggestedValues !== null;
-
     // Determine if checkbox should be disabled
     const workoutStatus = getWorkoutStatus();
     const isDisabled = workoutStatus !== "in_progress" || suggestionsLoading;
 
+    // Get display values from input buffers (if user is typing) or from workout data
+    const repsBuffer = inputBuffers[exerciseIndex]?.[setIndex]?.reps;
+    const weightBuffer = inputBuffers[exerciseIndex]?.[setIndex]?.weight;
+
+    const displayReps =
+      repsBuffer !== undefined
+        ? repsBuffer
+        : set.reps !== undefined && set.reps !== null
+          ? String(set.reps)
+          : "";
+
+    const displayWeight =
+      weightBuffer !== undefined
+        ? weightBuffer
+        : set.weight !== undefined && set.weight !== null
+          ? String(set.weight)
+          : "";
+
+    // Get validation errors
+    const repsError = validationErrors[exerciseIndex]?.[setIndex]?.reps;
+    const weightError = validationErrors[exerciseIndex]?.[setIndex]?.weight;
+
+    // Visual indicator if using suggestions
+    const usingSuggestions = suggestedValues !== null;
+
     return (
       <View key={setIndex}>
         <View style={styles.setRow}>
-          <TouchableOpacity
-            onPress={() => toggleSetCompletion(exerciseIndex, setIndex)}
-            style={styles.checkbox}
-            disabled={isDisabled}
-          >
-            <View
-              style={[
-                styles.checkboxInner,
-                set.completed && styles.checkboxChecked,
-                isDisabled && styles.checkboxDisabled,
-              ]}
+          {workoutStatus !== "not_started" && (
+            <TouchableOpacity
+              onPress={() => toggleSetCompletion(exerciseIndex, setIndex)}
+              style={styles.checkbox}
+              disabled={isDisabled}
             >
-              {set.completed && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-          </TouchableOpacity>
+              <View
+                style={[
+                  styles.checkboxInner,
+                  set.completed && styles.checkboxChecked,
+                  isDisabled && styles.checkboxDisabled,
+                ]}
+              >
+                {set.completed && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+            </TouchableOpacity>
+          )}
           <Text style={[styles.setNumber, { color: setColor }]}>
             {setIndex + 1}
           </Text>
-          <Text style={styles.setDetails}>
-            {displayReps} reps × {weightText}
-            {usingSuggestions && (
-              <Text style={styles.suggestedBadge}> ✨ Suggested</Text>
-            )}
-          </Text>
+
+          {/* Editable input fields */}
+          <View style={styles.inputGroup}>
+            {/* Reps Input */}
+            <TextInput
+              style={[
+                styles.setInput,
+                styles.repsInput,
+                repsError && styles.inputError,
+              ]}
+              value={displayReps}
+              onChangeText={(val) =>
+                handleFieldChange(exerciseIndex, setIndex, "reps", val)
+              }
+              onBlur={() =>
+                handleFieldBlur(exerciseIndex, setIndex, "reps", displayReps)
+              }
+              keyboardType="number-pad"
+              maxLength={4}
+              editable={!isDisabled}
+              selectTextOnFocus
+            />
+
+            <Text style={styles.timesSymbol}>×</Text>
+
+            {/* Weight Input */}
+            <TextInput
+              style={[
+                styles.setInput,
+                styles.weightInput,
+                weightError && styles.inputError,
+              ]}
+              value={displayWeight}
+              onChangeText={(val) =>
+                handleFieldChange(exerciseIndex, setIndex, "weight", val)
+              }
+              onBlur={() =>
+                handleFieldBlur(
+                  exerciseIndex,
+                  setIndex,
+                  "weight",
+                  displayWeight,
+                )
+              }
+              placeholder="0"
+              keyboardType="decimal-pad"
+              maxLength={5}
+              editable={!isDisabled}
+              selectTextOnFocus
+            />
+            <Text style={styles.weightUnit}>lbs</Text>
+
+            {usingSuggestions && <Text style={styles.suggestedBadge}>✨</Text>}
+          </View>
+
           {set.rest_seconds && (
             <Text style={styles.restTime}>{set.rest_seconds}s rest</Text>
           )}
@@ -881,5 +1253,48 @@ const styles = StyleSheet.create({
     color: COLORS.exerciseTitle,
     fontSize: 14,
     fontWeight: "600",
+  },
+  inputGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 8,
+  },
+  setInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 16,
+    color: COLORS.text,
+    backgroundColor: COLORS.cardBackground,
+    textAlign: "center",
+  },
+  repsInput: {
+    width: 50,
+  },
+  weightInput: {
+    width: 60,
+  },
+  timesSymbol: {
+    fontSize: 16,
+    color: COLORS.text,
+    marginHorizontal: 4,
+  },
+  weightUnit: {
+    fontSize: 14,
+    color: COLORS.setIncomplete,
+    marginLeft: 2,
+    marginRight: 8,
+  },
+  inputError: {
+    borderColor: COLORS.destructive,
+    borderWidth: 2,
+  },
+  inputErrorText: {
+    fontSize: 10,
+    color: COLORS.destructive,
+    marginTop: 2,
   },
 });
