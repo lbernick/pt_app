@@ -60,19 +60,16 @@ export default function HistoryScreen() {
 
     try {
       const apiUrl = `${backendUrl}/api/v1/workouts`;
-      const fetchedWorkouts = await apiClient.fetchJson<WorkoutApi[]>(
-        apiUrl,
-        { method: "GET" },
-      );
+      const fetchedWorkouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, {
+        method: "GET",
+      });
       // Sort workouts by date in descending order (earliest first)
       const sortedWorkouts = fetchedWorkouts.sort((a, b) =>
         a.date.localeCompare(b.date),
       );
       setWorkouts(sortedWorkouts);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch workouts",
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch workouts");
     } finally {
       setLoading(false);
     }
@@ -337,22 +334,18 @@ export default function HistoryScreen() {
               {formatDate(selectedWorkout.date)}
               {selectedWorkout.date === today && " (Today)"}
             </Text>
-            {selectedWorkout.start_time && selectedWorkout.end_time && (
-              <Text style={styles.selectedDayTime}>
-                {selectedWorkout.start_time} - {selectedWorkout.end_time}
-              </Text>
-            )}
             <View style={styles.selectedDayExercises}>
-              {selectedWorkout.exercises.map((exercise, index) => (
-                <View key={index} style={styles.selectedExerciseRow}>
-                  <Text style={styles.selectedExerciseName}>
-                    {exercise.name}
-                  </Text>
-                  <Text style={styles.selectedExerciseSets}>
-                    {exercise.sets.length} sets
-                  </Text>
-                </View>
-              ))}
+              {selectedWorkout.exercises &&
+                selectedWorkout.exercises.map((exercise, index) => (
+                  <View key={index} style={styles.selectedExerciseRow}>
+                    <Text style={styles.selectedExerciseName}>
+                      {exercise.name}
+                    </Text>
+                    <Text style={styles.selectedExerciseSets}>
+                      {exercise.sets.length} sets
+                    </Text>
+                  </View>
+                ))}
             </View>
           </View>
         )}
@@ -480,11 +473,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 8,
   },
-  selectedDayTime: {
-    fontSize: 14,
-    color: COLORS.pastWorkout,
-    marginBottom: 12,
-  },
   selectedDayExercises: {
     gap: 8,
   },
@@ -558,10 +546,6 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: COLORS.completedGreen,
-  },
-  timeText: {
-    fontSize: 14,
-    color: COLORS.pastWorkout,
   },
   completedBadge: {
     backgroundColor: COLORS.completedGreen,
