@@ -11,7 +11,7 @@ import {
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { Calendar, DateData } from "react-native-calendars";
 import { WorkoutApi } from "../types/workout";
-import { getWorkouts, getWorkoutById } from "../services/workoutApi";
+import { useApiClient } from "../hooks/useApiClient";
 
 type ViewMode = "list" | "calendar";
 
@@ -35,6 +35,7 @@ const COLORS = {
 export default function HistoryScreen() {
   const route = useRoute<HistoryScreenRouteProp>();
   const { backendUrl } = route.params;
+  const apiClient = useApiClient();
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -57,7 +58,8 @@ export default function HistoryScreen() {
       setError(null);
 
       try {
-        const fetchedWorkouts = await getWorkouts(backendUrl);
+        const apiUrl = `${backendUrl}/api/v1/workouts`;
+        const fetchedWorkouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, { method: "GET" });
         setWorkouts(fetchedWorkouts);
       } catch (err) {
         setError(
@@ -94,7 +96,8 @@ export default function HistoryScreen() {
         setLoadingDetails((prev) => new Set(prev).add(workoutId));
 
         try {
-          const detailedWorkout = await getWorkoutById(backendUrl, workoutId);
+          const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}`;
+          const detailedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "GET" });
           setDetailedWorkouts((prev) =>
             new Map(prev).set(workoutId, detailedWorkout),
           );

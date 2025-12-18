@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
 });
 
 export function AppContent() {
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [hasPlan, setHasPlan] = useState<boolean | null>(null);
 
@@ -109,7 +109,8 @@ export function AppContent() {
   const checkForTrainingPlan = async () => {
     setIsLoading(true);
     try {
-      await getTrainingPlan(config.backendUrl);
+      const token = await getIdToken();
+      await getTrainingPlan(config.backendUrl, token || undefined);
       // Plan exists
       setHasPlan(true);
     } catch (error) {

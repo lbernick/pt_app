@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { AuthContextType, AuthProviderProps } from '../types/auth';
-import { config } from '../config/env';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import { AuthContextType, AuthProviderProps } from "../types/auth";
+import { config } from "../config/env";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -12,8 +12,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     // Configure Firebase Auth Emulator if enabled
     if (config.useFirebaseEmulator) {
-      console.log(`Using Firebase Auth Emulator at ${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`);
-      auth().useEmulator(`http://${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`);
+      console.log(
+        `Using Firebase Auth Emulator at ${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`,
+      );
+      auth().useEmulator(
+        `http://${config.firebaseEmulatorHost}:${config.firebaseEmulatorPort}`,
+      );
     }
 
     const unsubscribe = auth().onAuthStateChanged((user) => {
@@ -42,7 +46,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, getIdToken }}>
+    <AuthContext.Provider
+      value={{ user, loading, signIn, signUp, signOut, getIdToken }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -51,7 +57,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 }

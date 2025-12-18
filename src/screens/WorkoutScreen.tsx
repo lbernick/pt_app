@@ -13,14 +13,7 @@ import {
   WorkoutSuggestionsResponse,
   SetInstance,
 } from "../types/workout";
-import {
-  getWorkouts,
-  getWorkoutSuggestions,
-  startWorkout,
-  finishWorkout,
-  cancelWorkout,
-  updateWorkoutExercises,
-} from "../services/workoutApi";
+import { useApiClient } from "../hooks/useApiClient";
 
 type WorkoutScreenRouteProp = RouteProp<
   { Workout: { backendUrl: string } },
@@ -43,6 +36,7 @@ const COLORS = {
 export default function WorkoutScreen() {
   const route = useRoute<WorkoutScreenRouteProp>();
   const { backendUrl } = route.params;
+  const apiClient = useApiClient();
 
   const [workout, setWorkout] = useState<WorkoutApi | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +61,9 @@ export default function WorkoutScreen() {
 
       try {
         const today = new Date().toISOString().split("T")[0];
-        const workouts = await getWorkouts(backendUrl, today);
+        const dateParam = today ? `?date=${today}` : "";
+        const apiUrl = `${backendUrl}/api/v1/workouts${dateParam}`;
+        const workouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, { method: "GET" });
 
         if (workouts.length > 0) {
           const todaysWorkout = workouts[0];
@@ -97,10 +93,8 @@ export default function WorkoutScreen() {
       setSuggestionsError(null);
 
       try {
-        const suggestionsData = await getWorkoutSuggestions(
-          backendUrl,
-          workoutId,
-        );
+        const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/suggestions`;
+        const suggestionsData = await apiClient.fetchJson<WorkoutSuggestionsResponse>(apiUrl, { method: "GET" });
         setSuggestions(suggestionsData);
       } catch (err) {
         console.error("Failed to fetch suggestions:", err);
@@ -173,11 +167,11 @@ export default function WorkoutScreen() {
 
     try {
       // Make API call with complete exercises array
-      const updatedWorkoutFromApi = await updateWorkoutExercises(
-        backendUrl,
-        workout.id,
-        optimisticWorkout.exercises,
-      );
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
+      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
+        method: "PUT",
+        body: { exercises: optimisticWorkout.exercises },
+      });
 
       // On success: replace with server response
       setWorkout(updatedWorkoutFromApi);
@@ -231,11 +225,11 @@ export default function WorkoutScreen() {
     setActionError(null);
 
     try {
-      const updatedWorkoutFromApi = await updateWorkoutExercises(
-        backendUrl,
-        workout.id,
-        optimisticWorkout.exercises,
-      );
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
+      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
+        method: "PUT",
+        body: { exercises: optimisticWorkout.exercises },
+      });
       setWorkout(updatedWorkoutFromApi);
     } catch (err) {
       console.error("Failed to add set:", err);
@@ -276,11 +270,11 @@ export default function WorkoutScreen() {
     setActionError(null);
 
     try {
-      const updatedWorkoutFromApi = await updateWorkoutExercises(
-        backendUrl,
-        workout.id,
-        optimisticWorkout.exercises,
-      );
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
+      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(apiUrl, {
+        method: "PUT",
+        body: { exercises: optimisticWorkout.exercises },
+      });
       setWorkout(updatedWorkoutFromApi);
     } catch (err) {
       console.error("Failed to delete set:", err);
@@ -332,7 +326,8 @@ export default function WorkoutScreen() {
     setWorkout(optimisticWorkout);
 
     try {
-      const updatedWorkout = await startWorkout(backendUrl, workout.id);
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/start`;
+      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
       setWorkout(updatedWorkout);
     } catch (err) {
       console.error("Failed to start workout:", err);
@@ -357,7 +352,8 @@ export default function WorkoutScreen() {
     setWorkout(optimisticWorkout);
 
     try {
-      const updatedWorkout = await finishWorkout(backendUrl, workout.id);
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/finish`;
+      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
       setWorkout(updatedWorkout);
     } catch (err) {
       console.error("Failed to finish workout:", err);
@@ -389,7 +385,8 @@ export default function WorkoutScreen() {
     setWorkout(optimisticWorkout);
 
     try {
-      const updatedWorkout = await cancelWorkout(backendUrl, workout.id);
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/cancel`;
+      const updatedWorkout = await apiClient.fetchJson<WorkoutApi>(apiUrl, { method: "POST" });
       setWorkout(updatedWorkout);
     } catch (err) {
       console.error("Failed to cancel workout:", err);
