@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { TrainingPlan } from "../types/trainingplan";
 import { useApiClient } from "../hooks/useApiClient";
@@ -23,6 +29,26 @@ const COLORS = {
   templateBBorder: "#f5a623",
   templateBText: "#f5a623",
   templateBCircle: "#f5a623",
+  templateCBg: "#f0e6ff",
+  templateCBorder: "#9b59b6",
+  templateCText: "#9b59b6",
+  templateCCircle: "#9b59b6",
+  templateDBg: "#e6fff2",
+  templateDBorder: "#27ae60",
+  templateDText: "#27ae60",
+  templateDCircle: "#27ae60",
+  templateEBg: "#ffe6f0",
+  templateEBorder: "#e74c3c",
+  templateEText: "#e74c3c",
+  templateECircle: "#e74c3c",
+  templateFBg: "#fff0e6",
+  templateFBorder: "#e67e22",
+  templateFText: "#e67e22",
+  templateFCircle: "#e67e22",
+  templateGBg: "#e6f7ff",
+  templateGBorder: "#16a085",
+  templateGText: "#16a085",
+  templateGCircle: "#16a085",
   restBg: "#f5f5f5",
   restBorder: "#d0d0d0",
   restText: "#999999",
@@ -32,7 +58,7 @@ const COLORS = {
   errorText: "#FF3B30",
 };
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default function TrainingPlanScreen() {
   const route = useRoute<TrainingPlanScreenRouteProp>();
@@ -49,11 +75,13 @@ export default function TrainingPlanScreen() {
         setLoading(true);
         setError(null);
         const apiUrl = `${backendUrl}/api/v1/training-plan`;
-        const fetchedPlan = await apiClient.fetchJson<TrainingPlan>(apiUrl, { method: "GET" });
+        const fetchedPlan = await apiClient.fetchJson<TrainingPlan>(apiUrl, {
+          method: "GET",
+        });
         setPlan(fetchedPlan);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to fetch training plan"
+          err instanceof Error ? err.message : "Failed to fetch training plan",
         );
       } finally {
         setLoading(false);
@@ -95,22 +123,52 @@ export default function TrainingPlanScreen() {
 
   // Get colors for a template
   const getTemplateColors = (templateIndex: number) => {
-    // Alternate between A and B color schemes
-    const colorScheme = templateIndex % 2 === 0 ? "A" : "B";
-    if (colorScheme === "A") {
-      return {
+    // Cycle through all color schemes (A, B, C, D, E, F, G)
+    const colorSchemes = [
+      {
         bg: COLORS.templateABg,
         border: COLORS.templateABorder,
         text: COLORS.templateAText,
         circle: COLORS.templateACircle,
-      };
-    }
-    return {
-      bg: COLORS.templateBBg,
-      border: COLORS.templateBBorder,
-      text: COLORS.templateBText,
-      circle: COLORS.templateBCircle,
-    };
+      },
+      {
+        bg: COLORS.templateBBg,
+        border: COLORS.templateBBorder,
+        text: COLORS.templateBText,
+        circle: COLORS.templateBCircle,
+      },
+      {
+        bg: COLORS.templateCBg,
+        border: COLORS.templateCBorder,
+        text: COLORS.templateCText,
+        circle: COLORS.templateCCircle,
+      },
+      {
+        bg: COLORS.templateDBg,
+        border: COLORS.templateDBorder,
+        text: COLORS.templateDText,
+        circle: COLORS.templateDCircle,
+      },
+      {
+        bg: COLORS.templateEBg,
+        border: COLORS.templateEBorder,
+        text: COLORS.templateEText,
+        circle: COLORS.templateECircle,
+      },
+      {
+        bg: COLORS.templateFBg,
+        border: COLORS.templateFBorder,
+        text: COLORS.templateFText,
+        circle: COLORS.templateFCircle,
+      },
+      {
+        bg: COLORS.templateGBg,
+        border: COLORS.templateGBorder,
+        text: COLORS.templateGText,
+        circle: COLORS.templateGCircle,
+      },
+    ];
+    return colorSchemes[templateIndex % colorSchemes.length];
   };
 
   // Split microcycle into rows of 7 days
@@ -123,22 +181,18 @@ export default function TrainingPlanScreen() {
   };
 
   const renderDayBox = (dayIndex: number, templateIndex: number) => {
-    const template = templateIndex !== -1 ? plan.templates[templateIndex] : null;
     const isRest = templateIndex === -1;
     const dayName = DAYS[dayIndex % 7];
 
     if (isRest) {
       return (
         <View key={dayIndex} style={[styles.dayBox, styles.restDayBox]}>
-          <Text style={styles.dayName}>{dayName}</Text>
-          <Text style={styles.restText}>Rest</Text>
-          <Text style={styles.restSubtext}>Recovery</Text>
+          <Text style={styles.dayLetter}>{dayName}</Text>
         </View>
       );
     }
 
     const colors = getTemplateColors(templateIndex);
-    const letter = getTemplateLetter(templateIndex);
 
     return (
       <View
@@ -148,18 +202,17 @@ export default function TrainingPlanScreen() {
           { backgroundColor: colors.bg, borderColor: colors.border },
         ]}
       >
-        <Text style={styles.dayName}>{dayName}</Text>
-        <Text style={[styles.templateLetter, { color: colors.text }]}>
-          {letter}
-        </Text>
-        <Text style={styles.daySubtext}>
-          {template?.exercises.length || 0} lifts
+        <Text style={[styles.dayLetter, { color: colors.text }]}>
+          {dayName}
         </Text>
       </View>
     );
   };
 
-  const renderTemplateCard = (template: TrainingPlan["templates"][0], index: number) => {
+  const renderTemplateCard = (
+    template: TrainingPlan["templates"][0],
+    index: number,
+  ) => {
     const colors = getTemplateColors(index);
     const letter = getTemplateLetter(index);
 
@@ -172,16 +225,20 @@ export default function TrainingPlanScreen() {
         ]}
       >
         <View style={styles.templateHeader}>
-          <View style={[styles.templateCircle, { backgroundColor: colors.circle }]}>
+          <View
+            style={[styles.templateCircle, { backgroundColor: colors.circle }]}
+          >
             <Text style={styles.templateCircleLetter}>{letter}</Text>
           </View>
           <View style={styles.templateInfo}>
             <Text style={styles.templateName}>{template.name}</Text>
             <Text style={styles.templateExercises}>
-              {template.exercises.map(ex => ex.name).join(" • ")}
+              {template.exercises.map((ex) => ex.name).join(" • ")}
             </Text>
             {template.description && (
-              <Text style={styles.templateDescription}>{template.description}</Text>
+              <Text style={styles.templateDescription}>
+                {template.description}
+              </Text>
             )}
           </View>
         </View>
@@ -215,7 +272,9 @@ export default function TrainingPlanScreen() {
       {/* Workouts at a Glance */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Workouts at a Glance</Text>
-        {plan.templates.map((template, index) => renderTemplateCard(template, index))}
+        {plan.templates.map((template, index) =>
+          renderTemplateCard(template, index),
+        )}
       </View>
     </ScrollView>
   );
@@ -264,36 +323,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     alignItems: "center",
-    minHeight: 90,
+    justifyContent: "center",
+    minHeight: 60,
   },
   restDayBox: {
     backgroundColor: COLORS.restBg,
     borderColor: COLORS.restBorder,
   },
-  dayName: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.sectionTitle,
-    marginBottom: 8,
-  },
-  templateLetter: {
-    fontSize: 24,
+  dayLetter: {
+    fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 4,
-  },
-  daySubtext: {
-    fontSize: 11,
-    color: COLORS.exerciseText,
-  },
-  restText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: COLORS.restText,
-    marginBottom: 2,
-  },
-  restSubtext: {
-    fontSize: 11,
-    color: COLORS.restText,
   },
   templateCard: {
     borderRadius: 12,
