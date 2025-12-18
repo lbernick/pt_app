@@ -239,6 +239,7 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
+    marginBottom: 25,
   },
   loadingContainer: {
     flex: 1,
