@@ -799,10 +799,6 @@ export default function WorkoutScreen() {
             <Text style={styles.weightUnit}>lbs</Text>
           </View>
 
-          {set.rest_seconds && (
-            <Text style={styles.restTime}>{set.rest_seconds}s rest</Text>
-          )}
-
           {/* Delete button */}
           {!isDisabled && (
             <TouchableOpacity
