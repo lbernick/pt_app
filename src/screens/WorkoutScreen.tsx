@@ -825,8 +825,6 @@ export default function WorkoutScreen() {
               selectTextOnFocus
             />
             <Text style={styles.weightUnit}>lbs</Text>
-
-            {usingSuggestions && <Text style={styles.suggestedBadge}>✨</Text>}
           </View>
 
           {set.rest_seconds && (
@@ -850,6 +848,12 @@ export default function WorkoutScreen() {
 
   // Check if there's a workout
   const hasWorkout = (workout?.exercises?.length ?? 0) > 0;
+
+  // Check if at least one set is completed
+  const hasCompletedSets =
+    workout?.exercises.some((exercise) =>
+      exercise.sets.some((set) => set.completed),
+    ) ?? false;
 
   if (!hasWorkout) {
     return (
@@ -908,10 +912,10 @@ export default function WorkoutScreen() {
           {getWorkoutStatus() === "in_progress" && (
             <TouchableOpacity
               onPress={handleFinishWorkout}
-              disabled={actionLoading}
+              disabled={actionLoading || !hasCompletedSets}
               style={[
                 styles.finishButton,
-                actionLoading && styles.buttonDisabled,
+                (actionLoading || !hasCompletedSets) && styles.buttonDisabled,
               ]}
             >
               {actionLoading ? (
@@ -996,7 +1000,6 @@ export default function WorkoutScreen() {
               <Text style={styles.cancelButtonText}>Cancel Workout</Text>
             )}
           </TouchableOpacity>
-          <Text style={styles.cancelWarning}>This will reset all progress</Text>
         </View>
       )}
     </ScrollView>
