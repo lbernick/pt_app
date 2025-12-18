@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { MaterialIcons } from "@expo/vector-icons";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import TrainingPlanScreen from "./src/screens/TrainingPlanScreen";
 import WorkoutScreen from "./src/screens/WorkoutScreen";
@@ -63,19 +64,34 @@ function RegularApp() {
         <Tab.Screen
           name="Workout"
           component={WorkoutScreen}
-          options={{ title: "Today's Workout" }}
+          options={{
+            title: "Today's Workout",
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="fitness-center" size={size} color={color} />
+            ),
+          }}
           initialParams={{ backendUrl: config.backendUrl }}
         />
         <Tab.Screen
           name="Plan"
           component={TrainingPlanScreen}
-          options={{ title: "Training Plan" }}
+          options={{
+            title: "Training Plan",
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="event-note" size={size} color={color} />
+            ),
+          }}
           initialParams={{ backendUrl: config.backendUrl }}
         />
         <Tab.Screen
           name="History"
           component={HistoryScreen}
-          options={{ title: "History" }}
+          options={{
+            title: "History",
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="history" size={size} color={color} />
+            ),
+          }}
           initialParams={{ backendUrl: config.backendUrl }}
         />
       </Tab.Navigator>
