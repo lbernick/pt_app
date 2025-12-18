@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   dayBox: {
     flex: 1,
     marginHorizontal: 4,
-    padding: 12,
+    padding: 10,
     borderRadius: 12,
     borderWidth: 2,
     alignItems: "center",

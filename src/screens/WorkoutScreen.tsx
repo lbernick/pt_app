@@ -273,27 +273,12 @@ export default function WorkoutScreen() {
     // Clear any previous errors
     setActionError(null);
 
-    try {
-      // Make API call with complete exercises array
-      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
-      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
-        apiUrl,
-        {
-          method: "PATCH",
-          body: { exercises: optimisticWorkout.exercises },
-        },
-      );
-
-      // On success: replace with server response
-      setWorkout(updatedWorkoutFromApi);
-    } catch (err) {
-      console.error("Failed to update set completion:", err);
-      setActionError(
-        err instanceof Error ? err.message : "Failed to update set completion",
-      );
-      // Revert to previous state on error
-      setWorkout(previousWorkout);
-    }
+    // Update backend
+    await updateExercisesOnBackend(
+      optimisticWorkout,
+      previousWorkout,
+      "Failed to update set completion",
+    );
   };
 
   const handleAddSet = async (exerciseIndex: number) => {
@@ -335,21 +320,12 @@ export default function WorkoutScreen() {
     setWorkout(optimisticWorkout);
     setActionError(null);
 
-    try {
-      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
-      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
-        apiUrl,
-        {
-          method: "PATCH",
-          body: { exercises: optimisticWorkout.exercises },
-        },
-      );
-      setWorkout(updatedWorkoutFromApi);
-    } catch (err) {
-      console.error("Failed to add set:", err);
-      setActionError(err instanceof Error ? err.message : "Failed to add set");
-      setWorkout(previousWorkout); // Revert on error
-    }
+    // Update backend
+    await updateExercisesOnBackend(
+      optimisticWorkout,
+      previousWorkout,
+      "Failed to add set",
+    );
   };
 
   const handleDeleteSet = async (exerciseIndex: number, setIndex: number) => {
@@ -383,23 +359,12 @@ export default function WorkoutScreen() {
     setWorkout(optimisticWorkout);
     setActionError(null);
 
-    try {
-      const apiUrl = `${backendUrl}/api/v1/workouts/${workout.id}/exercises`;
-      const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
-        apiUrl,
-        {
-          method: "PATCH",
-          body: { exercises: optimisticWorkout.exercises },
-        },
-      );
-      setWorkout(updatedWorkoutFromApi);
-    } catch (err) {
-      console.error("Failed to delete set:", err);
-      setActionError(
-        err instanceof Error ? err.message : "Failed to delete set",
-      );
-      setWorkout(previousWorkout); // Revert on error
-    }
+    // Update backend
+    await updateExercisesOnBackend(
+      optimisticWorkout,
+      previousWorkout,
+      "Failed to delete set",
+    );
   };
 
   const parseFieldValue = (
@@ -462,27 +427,40 @@ export default function WorkoutScreen() {
     return optimisticWorkout;
   };
 
-  const saveWorkoutToBackend = async (workoutToSave: WorkoutApi) => {
-    const previousWorkout = workout;
+  // Shared function to update exercises via API
+  const updateExercisesOnBackend = async (
+    optimisticWorkout: WorkoutApi,
+    previousWorkout: WorkoutApi | null,
+    errorMessage: string,
+  ) => {
     try {
-      const apiUrl = `${backendUrl}/api/v1/workouts/${workoutToSave.id}/exercises`;
+      const apiUrl = `${backendUrl}/api/v1/workouts/${optimisticWorkout.id}/exercises`;
       const updatedWorkoutFromApi = await apiClient.fetchJson<WorkoutApi>(
         apiUrl,
         {
           method: "PATCH",
-          body: { exercises: workoutToSave.exercises },
+          body: { exercises: optimisticWorkout.exercises },
         },
       );
       setWorkout(updatedWorkoutFromApi);
       setActionError(null);
     } catch (err) {
-      console.error("Failed to update set values:", err);
-      setActionError(
-        err instanceof Error ? err.message : "Failed to save changes",
-      );
+      console.error(errorMessage, err);
+      setActionError(err instanceof Error ? err.message : errorMessage);
       // Rollback on error
-      setWorkout(previousWorkout);
+      if (previousWorkout) {
+        setWorkout(previousWorkout);
+      }
     }
+  };
+
+  const saveWorkoutToBackend = async (workoutToSave: WorkoutApi) => {
+    const previousWorkout = workout;
+    await updateExercisesOnBackend(
+      workoutToSave,
+      previousWorkout,
+      "Failed to save changes",
+    );
   };
 
   const handleFieldChange = (
@@ -719,9 +697,6 @@ export default function WorkoutScreen() {
   ) => {
     const setColor = set.completed ? COLORS.setCompleted : COLORS.setIncomplete;
 
-    // Get suggestions for this specific set
-    const suggestedValues = getSuggestedSet(exerciseName, setIndex);
-
     // Determine if checkbox should be disabled
     const workoutStatus = getWorkoutStatus();
     const isDisabled = workoutStatus !== "in_progress" || suggestionsLoading;
@@ -747,9 +722,6 @@ export default function WorkoutScreen() {
     // Get validation errors
     const repsError = validationErrors[exerciseIndex]?.[setIndex]?.reps;
     const weightError = validationErrors[exerciseIndex]?.[setIndex]?.weight;
-
-    // Visual indicator if using suggestions
-    const usingSuggestions = suggestedValues !== null;
 
     return (
       <View key={setIndex}>
@@ -1115,11 +1087,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     width: 60,
   },
-  setDetails: {
-    fontSize: 16,
-    color: COLORS.text,
-    flex: 1,
-  },
   restTime: {
     fontSize: 14,
     color: COLORS.setIncomplete,
@@ -1148,11 +1115,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontStyle: "italic",
   },
-  suggestedBadge: {
-    fontSize: 12,
-    color: COLORS.exerciseTitle,
-    fontWeight: "600",
-  },
+
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -1222,12 +1185,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  cancelWarning: {
-    fontSize: 12,
-    color: COLORS.setIncomplete,
-    marginTop: 8,
-    fontStyle: "italic",
-  },
+
   deleteButton: {
     marginLeft: 8,
     padding: 4,
@@ -1294,10 +1252,5 @@ const styles = StyleSheet.create({
   inputError: {
     borderColor: COLORS.destructive,
     borderWidth: 2,
-  },
-  inputErrorText: {
-    fontSize: 10,
-    color: COLORS.destructive,
-    marginTop: 2,
   },
 });
