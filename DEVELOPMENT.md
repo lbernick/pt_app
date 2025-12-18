@@ -205,11 +205,7 @@ These steps build and run with XCode for free. You can also use EAS but this req
 7. Make sure iPhone and laptop are on the same WiFi network
 8. Start the app with `npx expo start --dev-client`. You can force refresh with `--clear`.
 
-## Development Workflow
-
-1. Make changes to `App.js` or other files
-2. Save the file
-3. The app will automatically reload with your changes (Fast Refresh)
+See https://github.com/expo/expo/issues/39607#issuecomment-3337284928 for a workaround required to build with react-native-firebase.
 
 ## TypeScript Support
 
@@ -243,12 +239,6 @@ Tests are configured with Jest and React Native Testing Library:
 - `npm test` - Run Jest tests
 - `npm run test:watch` - Run Jest in watch mode
 - `npm run test:coverage` - Run Jest with coverage report
-
-## Learning Resources
-
-- [Expo Documentation](https://docs.expo.dev/)
-- [React Native Documentation](https://reactnative.dev/docs/getting-started)
-- [React Documentation](https://react.dev/)
 
 ## Troubleshooting
 
