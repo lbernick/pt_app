@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import {
@@ -41,6 +42,7 @@ export default function WorkoutScreen() {
   const [workout, setWorkout] = useState<WorkoutApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Suggestions state
   const [suggestions, setSuggestions] =
@@ -52,61 +54,67 @@ export default function WorkoutScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Fetch today's workout on mount
-  useEffect(() => {
-    const fetchTodaysWorkout = async () => {
-      setLoading(true);
-      setError(null);
-      setSuggestionsError(null);
+  const fetchSuggestionsInBackground = async (workoutId: string) => {
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
 
-      try {
-        const today = new Date().toISOString().split("T")[0];
-        const dateParam = today ? `?date=${today}` : "";
-        const apiUrl = `${backendUrl}/api/v1/workouts${dateParam}`;
-        const workouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, { method: "GET" });
+    try {
+      const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/suggestions`;
+      const suggestionsData = await apiClient.fetchJson<WorkoutSuggestionsResponse>(apiUrl, { method: "GET" });
+      setSuggestions(suggestionsData);
+    } catch (err) {
+      console.error("Failed to fetch suggestions:", err);
+      setSuggestionsError(
+        err instanceof Error ? err.message : "Failed to fetch suggestions",
+      );
+      // Don't block the UI - user can still use workout with ranges
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
 
-        if (workouts.length > 0) {
-          const todaysWorkout = workouts[0];
-          setWorkout(todaysWorkout);
+  const fetchTodaysWorkout = async () => {
+    setLoading(true);
+    setError(null);
+    setSuggestionsError(null);
 
-          // Immediately set loading to false so workout displays
-          setLoading(false);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const dateParam = today ? `?date=${today}` : "";
+      const apiUrl = `${backendUrl}/api/v1/workouts${dateParam}`;
+      const workouts = await apiClient.fetchJson<WorkoutApi[]>(apiUrl, { method: "GET" });
 
-          // Fetch suggestions in background (non-blocking) - only if not already finished
-          if (!todaysWorkout.end_time) {
-            fetchSuggestionsInBackground(todaysWorkout.id);
-          }
-        } else {
-          setWorkout(null);
-          setLoading(false);
+      if (workouts.length > 0) {
+        const todaysWorkout = workouts[0];
+        setWorkout(todaysWorkout);
+
+        // Immediately set loading to false so workout displays
+        setLoading(false);
+
+        // Fetch suggestions in background (non-blocking) - only if not already finished
+        if (!todaysWorkout.end_time) {
+          fetchSuggestionsInBackground(todaysWorkout.id);
         }
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch workout",
-        );
+      } else {
+        setWorkout(null);
         setLoading(false);
       }
-    };
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch workout",
+      );
+      setLoading(false);
+    }
+  };
 
-    const fetchSuggestionsInBackground = async (workoutId: string) => {
-      setSuggestionsLoading(true);
-      setSuggestionsError(null);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchTodaysWorkout();
+    setRefreshing(false);
+  };
 
-      try {
-        const apiUrl = `${backendUrl}/api/v1/workouts/${workoutId}/suggestions`;
-        const suggestionsData = await apiClient.fetchJson<WorkoutSuggestionsResponse>(apiUrl, { method: "GET" });
-        setSuggestions(suggestionsData);
-      } catch (err) {
-        console.error("Failed to fetch suggestions:", err);
-        setSuggestionsError(
-          err instanceof Error ? err.message : "Failed to fetch suggestions",
-        );
-        // Don't block the UI - user can still use workout with ranges
-      } finally {
-        setSuggestionsLoading(false);
-      }
-    };
-
+  // Fetch today's workout on mount
+  useEffect(() => {
     fetchTodaysWorkout();
   }, [backendUrl]);
 
@@ -493,7 +501,12 @@ export default function WorkoutScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Today&apos;s Workout</Text>
 

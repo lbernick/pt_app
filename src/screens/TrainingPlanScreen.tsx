@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { TrainingPlan } from "../types/trainingplan";
@@ -68,26 +69,33 @@ export default function TrainingPlanScreen() {
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchPlan = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const apiUrl = `${backendUrl}/api/v1/training-plan`;
+      const fetchedPlan = await apiClient.fetchJson<TrainingPlan>(apiUrl, {
+        method: "GET",
+      });
+      setPlan(fetchedPlan);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch training plan",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPlan();
+    setRefreshing(false);
+  };
 
   useEffect(() => {
-    const fetchPlan = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const apiUrl = `${backendUrl}/api/v1/training-plan`;
-        const fetchedPlan = await apiClient.fetchJson<TrainingPlan>(apiUrl, {
-          method: "GET",
-        });
-        setPlan(fetchedPlan);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch training plan",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPlan();
   }, [backendUrl]);
 
@@ -247,7 +255,12 @@ export default function TrainingPlanScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Training Plan</Text>

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { Calendar, DateData } from "react-native-calendars";
@@ -42,6 +43,7 @@ export default function HistoryScreen() {
   const [workouts, setWorkouts] = useState<WorkoutApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(
     new Set(),
   );
@@ -52,31 +54,37 @@ export default function HistoryScreen() {
 
   const today = new Date().toISOString().split("T")[0];
 
+  const fetchWorkouts = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const apiUrl = `${backendUrl}/api/v1/workouts`;
+      const fetchedWorkouts = await apiClient.fetchJson<WorkoutApi[]>(
+        apiUrl,
+        { method: "GET" },
+      );
+      // Sort workouts by date in descending order (earliest first)
+      const sortedWorkouts = fetchedWorkouts.sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
+      setWorkouts(sortedWorkouts);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch workouts",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchWorkouts();
+    setRefreshing(false);
+  };
+
   useEffect(() => {
-    const fetchWorkouts = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const apiUrl = `${backendUrl}/api/v1/workouts`;
-        const fetchedWorkouts = await apiClient.fetchJson<WorkoutApi[]>(
-          apiUrl,
-          { method: "GET" },
-        );
-        // Sort workouts by date in descending order (earliest first)
-        const sortedWorkouts = fetchedWorkouts.sort((a, b) =>
-          a.date.localeCompare(b.date),
-        );
-        setWorkouts(sortedWorkouts);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch workouts",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchWorkouts();
   }, [backendUrl]);
 
@@ -293,7 +301,12 @@ export default function HistoryScreen() {
     const selectedWorkout = getSelectedDayWorkout();
 
     return (
-      <ScrollView style={styles.calendarScrollView}>
+      <ScrollView
+        style={styles.calendarScrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <Calendar
           current={today}
           markedDates={getMarkedDates()}
@@ -377,6 +390,9 @@ export default function HistoryScreen() {
         renderItem={renderWorkoutCard}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     );
   };
