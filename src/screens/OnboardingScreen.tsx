@@ -59,7 +59,6 @@ export default function OnboardingScreen() {
     OnboardingMessage[]
   >([{ role: "assistant", content: INITIAL_MESSAGE }]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
 
@@ -144,7 +143,6 @@ export default function OnboardingScreen() {
 
       // Check if onboarding is complete
       if (response.is_complete) {
-        setIsComplete(true);
         console.log("Onboarding complete! State:", response.state);
 
         // Generate training plan

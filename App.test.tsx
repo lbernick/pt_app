@@ -79,7 +79,7 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Welcome to PT App/i)).toBeTruthy();
+      expect(screen.getByText(/Hi! I'm your personal trainer/i)).toBeTruthy();
     });
   });
 
