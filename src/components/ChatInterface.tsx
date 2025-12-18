@@ -31,7 +31,7 @@ export default function ChatInterface({
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 120 : 0}
     >
       {/* Messages container */}
       <ScrollView
