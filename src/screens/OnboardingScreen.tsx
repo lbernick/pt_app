@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -38,28 +38,30 @@ const COLORS = {
   errorText: "#FF3B30",
 };
 
+const INITIAL_MESSAGE =
+  "Hi! I'm your personal trainer. What are your fitness goals?";
+
 export default function OnboardingScreen() {
   const route = useRoute<OnboardingScreenRouteProp>();
   const navigation = useNavigation<OnboardingScreenNavigationProp>();
   const { backendUrl, onPlanCreated } = route.params;
   const apiClient = useApiClient();
 
-  const [messages, setMessages] = useState<MessageType[]>([]);
+  const [messages, setMessages] = useState<MessageType[]>([
+    {
+      id: "initial",
+      text: INITIAL_MESSAGE,
+      sender: "assistant",
+      timestamp: new Date(),
+    },
+  ]);
   const [onboardingHistory, setOnboardingHistory] = useState<
     OnboardingMessage[]
-  >([]);
-  const [onboardingState, setOnboardingState] = useState<OnboardingState>({});
+  >([{ role: "assistant", content: INITIAL_MESSAGE }]);
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
-
-  // Initial onboarding message on mount
-  useEffect(() => {
-    if (messages.length === 0) {
-      handleOnboardingMessage("");
-    }
-  }, []);
 
   const generatePlan = async (state: OnboardingState) => {
     try {
@@ -140,9 +142,6 @@ export default function OnboardingScreen() {
       updatedHistory.push({ role: "assistant", content: response.message });
       setOnboardingHistory(updatedHistory);
 
-      // Update onboarding state
-      setOnboardingState(response.state);
-
       // Check if onboarding is complete
       if (response.is_complete) {
         setIsComplete(true);
@@ -200,14 +199,6 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Onboarding Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Welcome to PT App</Text>
-        {isComplete && (
-          <Text style={styles.completeText}>Onboarding Complete! ✓</Text>
-        )}
-      </View>
-
       {/* Chat Interface */}
       <View style={styles.chatContainer}>
         <ChatInterface
@@ -242,10 +233,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: COLORS.headerText,
     marginBottom: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    color: COLORS.progressText,
   },
   completeText: {
     fontSize: 14,
