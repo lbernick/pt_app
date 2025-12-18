@@ -3,6 +3,11 @@ import App from "./App";
 import * as trainingPlanApi from "./src/services/trainingPlanApi";
 import * as AuthContext from "./src/contexts/AuthContext";
 
+// Mock @expo/vector-icons
+jest.mock("@expo/vector-icons", () => ({
+  MaterialIcons: "MaterialIcons",
+}));
+
 // Mock the training plan API
 jest.mock("./src/services/trainingPlanApi");
 

@@ -11,6 +11,7 @@ import { config, safeConfig } from "./src/config/env";
 import { getTrainingPlan } from "./src/services/trainingPlanApi";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import AuthNavigator from "./src/navigation/AuthNavigator";
+import LogoutButton from "./src/components/LogoutButton";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -27,7 +28,11 @@ interface OnboardingAppProps {
 function OnboardingApp({ onPlanCreated }: OnboardingAppProps) {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerRight: () => <LogoutButton />,
+        }}
+      >
         <Stack.Screen
           name="Onboarding"
           component={OnboardingScreen}
@@ -50,7 +55,11 @@ function OnboardingApp({ onPlanCreated }: OnboardingAppProps) {
 function RegularApp() {
   return (
     <NavigationContainer>
-      <Tab.Navigator>
+      <Tab.Navigator
+        screenOptions={{
+          headerRight: () => <LogoutButton />,
+        }}
+      >
         <Tab.Screen
           name="Workout"
           component={WorkoutScreen}
