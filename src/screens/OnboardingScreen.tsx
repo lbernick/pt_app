@@ -165,23 +165,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  // Calculate progress based on collected fields
-  const calculateProgress = () => {
-    const fields = [
-      "fitness_goals",
-      "experience_level",
-      "current_routine",
-      "days_per_week",
-      "equipment_available",
-      "injuries_limitations",
-      "preferences",
-    ];
-    const completedFields = fields.filter(
-      (field) => onboardingState[field as keyof OnboardingState] !== undefined,
-    ).length;
-    return Math.round((completedFields / fields.length) * 100);
-  };
-
   // Show loading state while generating plan
   if (isGeneratingPlan) {
     return (
@@ -220,11 +203,6 @@ export default function OnboardingScreen() {
       {/* Onboarding Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Welcome to PT App</Text>
-        {!isComplete && (
-          <Text style={styles.progressText}>
-            Progress: {calculateProgress()}%
-          </Text>
-        )}
         {isComplete && (
           <Text style={styles.completeText}>Onboarding Complete! ✓</Text>
         )}
