@@ -52,7 +52,7 @@ export default function HistoryScreen() {
   >(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const fetchWorkouts = async () => {
     setLoading(true);
