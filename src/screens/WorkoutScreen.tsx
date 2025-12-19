@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
   SetInstance,
 } from "../types/workout";
 import { useApiClient } from "../hooks/useApiClient";
-import SetRow from "../components/SetRow";
+import ExerciseCard from "../components/ExerciseCard";
 
 type WorkoutScreenRouteProp = RouteProp<
   { Workout: { backendUrl: string } },
@@ -685,54 +685,11 @@ export default function WorkoutScreen() {
     }
   };
 
-  const renderSet = (
-    set: WorkoutApi["exercises"][0]["sets"][0],
-    exerciseIndex: number,
-    setIndex: number,
-    exerciseName: string,
-  ) => {
-    // Compute derived values
-    const workoutStatus = getWorkoutStatus();
-    const isDisabled = workoutStatus !== "in_progress" || suggestionsLoading;
-    const showCheckbox = workoutStatus !== "not_started";
-
-    const repsBuffer = inputBuffers[exerciseIndex]?.[setIndex]?.reps;
-    const weightBuffer = inputBuffers[exerciseIndex]?.[setIndex]?.weight;
-    const repsError = validationErrors[exerciseIndex]?.[setIndex]?.reps;
-    const weightError = validationErrors[exerciseIndex]?.[setIndex]?.weight;
-
-    const suggestedReps = suggestions?.exercises.find(
-      (ex) => ex.name === exerciseName,
-    )?.sets[setIndex]?.reps;
-    const suggestedWeight = suggestions?.exercises.find(
-      (ex) => ex.name === exerciseName,
-    )?.sets[setIndex]?.weight;
-
-    return (
-      <SetRow
-        key={setIndex}
-        set={set}
-        setIndex={setIndex}
-        exerciseIndex={exerciseIndex}
-        isDisabled={isDisabled}
-        showCheckbox={showCheckbox}
-        repsBuffer={repsBuffer}
-        weightBuffer={weightBuffer}
-        repsError={repsError}
-        weightError={weightError}
-        suggestedReps={suggestedReps}
-        suggestedWeight={suggestedWeight}
-        onFieldChange={(field, value) =>
-          handleFieldChange(exerciseIndex, setIndex, field, value)
-        }
-        onFieldBlur={(field, value) =>
-          handleFieldBlur(exerciseIndex, setIndex, field, value)
-        }
-        onToggleCompletion={() => toggleSetCompletion(exerciseIndex, setIndex)}
-        onDelete={() => handleDeleteSet(exerciseIndex, setIndex)}
-      />
-    );
-  };
+  // Performance optimization: Create Map for O(1) suggestions lookup
+  const suggestionsByExercise = useMemo(() => {
+    if (!suggestions) return new Map();
+    return new Map(suggestions.exercises.map((ex) => [ex.name, ex]));
+  }, [suggestions]);
 
   // Check if there's a workout
   const hasWorkout = (workout?.exercises?.length ?? 0) > 0;
@@ -744,6 +701,7 @@ export default function WorkoutScreen() {
     ) ?? false;
 
   if (!hasWorkout) {
+    // TODO: Swipe to refresh here too
     return (
       <View style={styles.blankStateContainer}>
         <Text style={styles.blankStateTitle}>
@@ -821,55 +779,38 @@ export default function WorkoutScreen() {
           )}
         </View>
       </View>
-      {workout?.exercises.map((exerciseInstance, exerciseIndex) => (
-        <View key={exerciseIndex} style={styles.exerciseCard}>
-          <Text style={styles.exerciseName}>{exerciseInstance.name}</Text>
+      {workout?.exercises.map((exerciseInstance, exerciseIndex) => {
+        const exerciseSuggestions = suggestionsByExercise.get(
+          exerciseInstance.name,
+        );
 
-          {/* Show loading indicator while fetching suggestions */}
-          {suggestionsLoading && (
-            <View style={styles.suggestionsLoadingContainer}>
-              <ActivityIndicator size="small" color={COLORS.exerciseTitle} />
-              <Text style={styles.suggestionsLoadingText}>
-                Loading AI suggestions...
-              </Text>
-            </View>
-          )}
-
-          {/* Show target ranges if no suggestions yet */}
-          {!suggestions && !suggestionsLoading && (
-            <Text style={styles.targetReps}>
-              Target: {exerciseInstance.target_rep_min}-
-              {exerciseInstance.target_rep_max} reps ×{" "}
-              {exerciseInstance.target_sets} sets
-            </Text>
-          )}
-
-          {/* Show suggestions error (non-critical) */}
-          {suggestionsError && !suggestionsLoading && !suggestions && (
-            <Text style={styles.suggestionsErrorText}>
-              Could not load suggestions. Showing target ranges.
-            </Text>
-          )}
-
-          {exerciseInstance.notes && (
-            <Text style={styles.exerciseNotes}>{exerciseInstance.notes}</Text>
-          )}
-
-          {exerciseInstance.sets.map((set, setIndex) =>
-            renderSet(set, exerciseIndex, setIndex, exerciseInstance.name),
-          )}
-
-          {/* Add Set button */}
-          {getWorkoutStatus() === "in_progress" && !suggestionsLoading && (
-            <TouchableOpacity
-              onPress={() => handleAddSet(exerciseIndex)}
-              style={styles.addSetButton}
-            >
-              <Text style={styles.addSetButtonText}>+ Add Set</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ))}
+        return (
+          <ExerciseCard
+            key={exerciseIndex}
+            exercise={exerciseInstance}
+            exerciseIndex={exerciseIndex}
+            exerciseSuggestions={exerciseSuggestions}
+            suggestionsLoading={suggestionsLoading}
+            suggestionsError={suggestionsError}
+            workoutStatus={getWorkoutStatus()}
+            inputBuffers={inputBuffers[exerciseIndex]}
+            validationErrors={validationErrors[exerciseIndex]}
+            onAddSet={() => handleAddSet(exerciseIndex)}
+            onDeleteSet={(setIndex) =>
+              handleDeleteSet(exerciseIndex, setIndex)
+            }
+            onToggleSetCompletion={(setIndex) =>
+              toggleSetCompletion(exerciseIndex, setIndex)
+            }
+            onFieldChange={(setIndex, field, value) =>
+              handleFieldChange(exerciseIndex, setIndex, field, value)
+            }
+            onFieldBlur={(setIndex, field, value) =>
+              handleFieldBlur(exerciseIndex, setIndex, field, value)
+            }
+          />
+        );
+      })}
 
       {/* Cancel button - bottom */}
       {getWorkoutStatus() === "in_progress" && (
@@ -933,56 +874,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: COLORS.text,
   },
-  exerciseCard: {
-    backgroundColor: COLORS.cardBackground,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  exerciseName: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: COLORS.exerciseTitle,
-    marginBottom: 8,
-  },
-  targetReps: {
-    fontSize: 14,
-    color: COLORS.setIncomplete,
-    marginBottom: 8,
-    fontStyle: "italic",
-  },
-  exerciseNotes: {
-    fontSize: 14,
-    color: COLORS.text,
-    marginTop: 8,
-    marginBottom: 8,
-    fontStyle: "italic",
-  },
-  suggestionsLoadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    paddingVertical: 4,
-  },
-  suggestionsLoadingText: {
-    fontSize: 14,
-    color: COLORS.exerciseTitle,
-    marginLeft: 8,
-    fontStyle: "italic",
-  },
-  suggestionsErrorText: {
-    fontSize: 13,
-    color: COLORS.setIncomplete,
-    marginBottom: 8,
-    fontStyle: "italic",
-  },
-
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -1050,24 +941,6 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: COLORS.destructive,
     fontSize: 16,
-    fontWeight: "600",
-  },
-  addSetButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: COLORS.exerciseTitle,
-    borderStyle: "dashed",
-    backgroundColor: COLORS.cardBackground,
-  },
-  addSetButtonText: {
-    color: COLORS.exerciseTitle,
-    fontSize: 14,
     fontWeight: "600",
   },
 });
